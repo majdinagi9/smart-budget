@@ -1,31 +1,80 @@
-// Get references to the DOM elements
+// DOM Elements
 const descriptionInput = document.getElementById('description');
 const amountInput = document.getElementById('amount');
-const transactionTypeSelect = document.getElementById('transaction-type');
 const addTransactionButton = document.getElementById('add-transaction');
 const saveTransactionButton = document.getElementById('save-transaction');
 const balanceElement = document.getElementById('balance');
 const historyList = document.getElementById('history-list');
-const toggleHistoryButton = document.getElementById('toggle-history');
-const historySection = document.getElementById('history-section');
-const exportDataButton = document.getElementById('export-data');
-const clearDataButton = document.getElementById('clear-data');
 
+// Initialize transactions from localStorage or empty array
 let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
 let currentEditIndex = null;
 
-// Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
     renderTransactions();
     updateBalance();
-    
-    // Set up event listeners
-    addTransactionButton.addEventListener('click', addTransaction);
-    saveTransactionButton.addEventListener('click', saveTransaction);
-    toggleHistoryButton.addEventListener('click', toggleHistory);
-    exportDataButton.addEventListener('click', exportData);
-    clearDataButton.addEventListener('click', clearData);
+    setupEventListeners();
 });
+
+function setupEventListeners() {
+    // Add transaction button
+    addTransactionButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        addTransaction();
+    });
+
+    // Save transaction button
+    saveTransactionButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        saveTransaction();
+    });
+
+    // Other event listeners...
+    document.getElementById('toggle-history').addEventListener('click', toggleHistory);
+    document.getElementById('export-data').addEventListener('click', exportData);
+    document.getElementById('clear-data').addEventListener('click', clearData);
+}
+
+function addTransaction() {
+    console.log("Add transaction button clicked"); // Debug log
+    
+    const description = descriptionInput.value.trim();
+    const amount = parseFloat(amountInput.value);
+    const type = document.querySelector('input[name="transactionType"]:checked').value;
+
+    // Validation
+    if (!description) {
+        alert('Please enter a description');
+        return;
+    }
+
+    if (isNaN(amount) {
+        alert('Please enter a valid amount');
+        return;
+    }
+
+    // Create transaction
+    const transactionAmount = type === 'expense' ? -Math.abs(amount) : Math.abs(amount);
+    const newTransaction = {
+        description,
+        amount: transactionAmount,
+        dateModified: new Date().toISOString(),
+        type: type
+    };
+
+    // Add to transactions array
+    transactions.push(newTransaction);
+    saveTransactionsToLocalStorage();
+    renderTransactions();
+    updateBalance();
+
+    // Clear form
+    descriptionInput.value = '';
+    amountInput.value = '';
+    document.getElementById('incomeRadio').checked = true;
+    descriptionInput.focus();
+}
 
 function renderTransactions() {
     historyList.innerHTML = '';
@@ -53,12 +102,12 @@ function renderTransactions() {
             </div>
         `;
 
-        // Edit button functionality
+        // Edit button
         transactionItem.querySelector('.edit-transaction').addEventListener('click', () => {
             editTransaction(index);
         });
 
-        // Delete button functionality
+        // Delete button
         transactionItem.querySelector('.delete-transaction').addEventListener('click', () => {
             deleteTransaction(index);
         });
@@ -67,57 +116,14 @@ function renderTransactions() {
     });
 }
 
-function updateBalance() {
-    const balance = transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
-    balanceElement.textContent = `$${balance.toFixed(2)}`;
-    balanceElement.className = `fs-2 fw-bold ${balance < 0 ? 'negative' : 'positive'}`;
-}
-
-function saveTransactionsToLocalStorage() {
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-}
-
-function addTransaction() {
-    const description = descriptionInput.value.trim();
-    const amount = parseFloat(amountInput.value);
-    const type = transactionTypeSelect.value;
-
-    if (!description) {
-        alert('Please enter a description');
-        return;
-    }
-
-    if (isNaN(amount) {
-        alert('Please enter a valid amount');
-        return;
-    }
-
-    const transactionAmount = type === 'expense' ? -Math.abs(amount) : Math.abs(amount);
-    
-    transactions.push({
-        description,
-        amount: transactionAmount,
-        dateModified: new Date().toISOString(),
-        type: type
-    });
-    
-    saveTransactionsToLocalStorage();
-    renderTransactions();
-    updateBalance();
-
-    // Clear inputs
-    descriptionInput.value = '';
-    amountInput.value = '';
-    descriptionInput.focus();
-}
-
+// ... (rest of your existing functions remain the same)
 function editTransaction(index) {
     const transaction = transactions[index];
     currentEditIndex = index;
     
     descriptionInput.value = transaction.description;
     amountInput.value = Math.abs(transaction.amount);
-    transactionTypeSelect.value = transaction.amount < 0 ? 'expense' : 'income';
+    document.getElementById(transaction.amount < 0 ? 'expenseRadio' : 'incomeRadio').checked = true;
     
     addTransactionButton.style.display = 'none';
     saveTransactionButton.style.display = 'block';
@@ -130,7 +136,7 @@ function saveTransaction() {
 
     const description = descriptionInput.value.trim();
     const amount = parseFloat(amountInput.value);
-    const type = transactionTypeSelect.value;
+    const type = document.querySelector('input[name="transactionType"]:checked').value;
 
     if (!description) {
         alert('Please enter a description');
@@ -155,9 +161,10 @@ function saveTransaction() {
     renderTransactions();
     updateBalance();
 
-    // Clear inputs and reset UI
+    // Reset form
     descriptionInput.value = '';
     amountInput.value = '';
+    document.getElementById('incomeRadio').checked = true;
     addTransactionButton.style.display = 'block';
     saveTransactionButton.style.display = 'none';
     currentEditIndex = null;
@@ -170,6 +177,16 @@ function deleteTransaction(index) {
         renderTransactions();
         updateBalance();
     }
+}
+
+function updateBalance() {
+    const balance = transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+    balanceElement.textContent = `$${balance.toFixed(2)}`;
+    balanceElement.className = `fs-2 fw-bold ${balance < 0 ? 'negative' : 'positive'}`;
+}
+
+function saveTransactionsToLocalStorage() {
+    localStorage.setItem('transactions', JSON.stringify(transactions));
 }
 
 function toggleHistory() {
