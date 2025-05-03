@@ -7,6 +7,10 @@ const balanceElement = document.getElementById('balance');
 const historyList = document.getElementById('history-list');
 const historySection = document.getElementById('history-section');
 const toggleHistoryButton = document.getElementById('toggle-history');
+const exportDataButton = document.getElementById('export-data');
+const clearDataButton = document.getElementById('clear-data');
+const darkModeToggle = document.getElementById('darkModeToggle');
+const mobileAddButton = document.getElementById('mobile-add-btn');
 
 // Initialize transactions from localStorage or empty array
 let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
@@ -17,6 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTransactions();
     updateBalance();
     setupEventListeners();
+    
+    // Initialize history section as visible
+    historySection.style.display = 'block';
+    toggleHistoryButton.innerHTML = '<i class="bi bi-chevron-up"></i> Hide';
 });
 
 function setupEventListeners() {
@@ -24,6 +32,12 @@ function setupEventListeners() {
     addTransactionButton.addEventListener('click', (e) => {
         e.preventDefault();
         addTransaction();
+    });
+
+    // Mobile add button
+    mobileAddButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('description').focus();
     });
 
     // Save transaction button
@@ -36,10 +50,13 @@ function setupEventListeners() {
     toggleHistoryButton.addEventListener('click', toggleHistory);
 
     // Export data button
-    document.getElementById('export-data').addEventListener('click', exportData);
+    exportDataButton.addEventListener('click', exportData);
 
     // Clear data button
-    document.getElementById('clear-data').addEventListener('click', clearData);
+    clearDataButton.addEventListener('click', clearData);
+
+    // Dark mode toggle
+    darkModeToggle.addEventListener('change', toggleDarkMode);
 }
 
 function addTransaction() {
@@ -49,12 +66,12 @@ function addTransaction() {
 
     // Validation
     if (!description) {
-        alert('Please enter a description');
+        showAlert('Please enter a description', 'warning');
         return;
     }
 
-    if (isNaN(amount)) {
-        alert('Please enter a valid amount');
+    if (isNaN(amount) || amount <= 0) {
+        showAlert('Please enter a valid amount', 'warning');
         return;
     }
 
@@ -67,26 +84,42 @@ function addTransaction() {
         type: type
     };
 
-    // Add to transactions array
-    transactions.push(newTransaction);
-    saveTransactionsToLocalStorage();
-    renderTransactions();
-    updateBalance();
+    // Add animation
+    addTransactionButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Adding...';
+    
+    // Simulate processing delay
+    setTimeout(() => {
+        // Add to transactions array
+        transactions.push(newTransaction);
+        saveTransactionsToLocalStorage();
+        renderTransactions();
+        updateBalance();
 
-    // Clear form
-    descriptionInput.value = '';
-    amountInput.value = '';
-    document.getElementById('incomeRadio').checked = true;
-    descriptionInput.focus();
+        // Clear form
+        descriptionInput.value = '';
+        amountInput.value = '';
+        document.getElementById('incomeRadio').checked = true;
+        
+        // Show success animation
+        addTransactionButton.innerHTML = '<i class="bi bi-check-circle"></i> Added!';
+        setTimeout(() => {
+            addTransactionButton.innerHTML = '<i class="bi bi-plus-circle"></i> Add Transaction';
+        }, 1000);
+        
+        descriptionInput.focus();
+    }, 500);
 }
 
 function renderTransactions() {
     historyList.innerHTML = '';
     
     if (transactions.length === 0) {
-        historyList.innerHTML = '<li class="list-group-item text-center">No transactions yet</li>';
+        historyList.innerHTML = '<li class="list-group-item text-center py-4">No transactions yet</li>';
         return;
     }
+
+    // Sort by date (newest first)
+    transactions.sort((a, b) => new Date(b.dateModified) - new Date(a.dateModified));
 
     transactions.forEach((transaction, index) => {
         const transactionItem = document.createElement('li');
@@ -96,13 +129,22 @@ function renderTransactions() {
         
         transactionItem.innerHTML = `
             <span>
-                <strong>${transaction.description}</strong><br>
-                <small>${new Date(transaction.dateModified).toLocaleString()}</small>
+                <strong>${transaction.description}</strong>
+                <div class="d-flex align-items-center mt-1">
+                    <small class="text-muted me-2">${new Date(transaction.dateModified).toLocaleString()}</small>
+                    <span class="badge rounded-pill ${transaction.amount < 0 ? 'bg-danger' : 'bg-success'}">
+                        ${transaction.amount < 0 ? 'Owe' : 'Gain'}
+                    </span>
+                </div>
             </span>
-            <span>${transaction.amount < 0 ? '-$' : '$'}${Math.abs(transaction.amount).toFixed(2)}</span>
+            <span class="fw-bold">${transaction.amount < 0 ? '-$' : '$'}${Math.abs(transaction.amount).toFixed(2)}</span>
             <div>
-                <button class="btn btn-sm btn-primary me-2 edit-transaction">Edit</button>
-                <button class="btn btn-sm btn-danger delete-transaction">Delete</button>
+                <button class="btn btn-sm btn-primary me-2 edit-transaction">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-danger delete-transaction">
+                    <i class="bi bi-trash"></i>
+                </button>
             </div>
         `;
 
@@ -132,6 +174,9 @@ function editTransaction(index) {
     saveTransactionButton.style.display = 'block';
     
     descriptionInput.focus();
+    
+    // Scroll to input section
+    document.querySelector('.input-section').scrollIntoView({ behavior: 'smooth' });
 }
 
 function saveTransaction() {
@@ -142,35 +187,46 @@ function saveTransaction() {
     const type = document.querySelector('input[name="transactionType"]:checked').value;
 
     if (!description) {
-        alert('Please enter a description');
+        showAlert('Please enter a description', 'warning');
         return;
     }
 
-    if (isNaN(amount)) {
-        alert('Please enter a valid amount');
+    if (isNaN(amount) || amount <= 0) {
+        showAlert('Please enter a valid amount', 'warning');
         return;
     }
 
     const transactionAmount = type === 'expense' ? -Math.abs(amount) : Math.abs(amount);
     
-    transactions[currentEditIndex] = {
-        description,
-        amount: transactionAmount,
-        dateModified: new Date().toISOString(),
-        type: type
-    };
+    // Add processing animation
+    saveTransactionButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Saving...';
     
-    saveTransactionsToLocalStorage();
-    renderTransactions();
-    updateBalance();
+    setTimeout(() => {
+        transactions[currentEditIndex] = {
+            description,
+            amount: transactionAmount,
+            dateModified: new Date().toISOString(),
+            type: type
+        };
+        
+        saveTransactionsToLocalStorage();
+        renderTransactions();
+        updateBalance();
 
-    // Reset form
-    descriptionInput.value = '';
-    amountInput.value = '';
-    document.getElementById('incomeRadio').checked = true;
-    addTransactionButton.style.display = 'block';
-    saveTransactionButton.style.display = 'none';
-    currentEditIndex = null;
+        // Reset form
+        descriptionInput.value = '';
+        amountInput.value = '';
+        document.getElementById('incomeRadio').checked = true;
+        addTransactionButton.style.display = 'block';
+        saveTransactionButton.style.display = 'none';
+        currentEditIndex = null;
+        
+        // Show success animation
+        saveTransactionButton.innerHTML = '<i class="bi bi-check-circle"></i> Saved!';
+        setTimeout(() => {
+            saveTransactionButton.innerHTML = '<i class="bi bi-save"></i> Save Changes';
+        }, 1000);
+    }, 500);
 }
 
 function deleteTransaction(index) {
@@ -185,7 +241,7 @@ function deleteTransaction(index) {
 function updateBalance() {
     const balance = transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
     balanceElement.textContent = `$${balance.toFixed(2)}`;
-    balanceElement.className = `fs-2 fw-bold ${balance < 0 ? 'negative' : 'positive'}`;
+    balanceElement.className = `balance-display fs-2 fw-bold ${balance < 0 ? 'negative' : 'positive'}`;
 }
 
 function saveTransactionsToLocalStorage() {
@@ -195,7 +251,9 @@ function saveTransactionsToLocalStorage() {
 function toggleHistory() {
     const isVisible = historySection.style.display === 'block';
     historySection.style.display = isVisible ? 'none' : 'block';
-    toggleHistoryButton.textContent = isVisible ? 'Show Transaction History' : 'Hide Transaction History';
+    toggleHistoryButton.innerHTML = isVisible 
+        ? '<i class="bi bi-chevron-down"></i> Show' 
+        : '<i class="bi bi-chevron-up"></i> Hide';
 }
 
 function exportData() {
@@ -220,4 +278,31 @@ function clearData() {
         renderTransactions();
         updateBalance();
     }
+}
+
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+}
+
+function showAlert(message, type) {
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    alert.style.zIndex = '1000';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+    
+    setTimeout(() => {
+        alert.classList.remove('show');
+        setTimeout(() => alert.remove(), 150);
+    }, 3000);
+}
+
+// Check for saved dark mode preference
+if (localStorage.getItem('darkMode') === 'true') {
+    document.body.classList.add('dark-mode');
+    darkModeToggle.checked = true;
 }
