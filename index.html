@@ -24,7 +24,14 @@
                     <input type="text" id="description" class="form-control" placeholder="Description" required>
                 </div>
                 <div class="col-12 col-md-5">
-                    <input type="number" id="amount" class="form-control" placeholder="Amount" required step="0.01">
+                    <input type="number" 
+                           id="amount" 
+                           class="form-control" 
+                           placeholder="Amount" 
+                           required 
+                           step="0.01"
+                           inputmode="decimal"
+                           pattern="[0-9]*">
                 </div>
                 <div class="col-12 col-md-2">
                     <div class="d-flex gap-3">
