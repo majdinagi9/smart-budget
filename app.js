@@ -22,9 +22,15 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBalance();
     setupEventListeners();
     
-    // Initialize history section as visible
-    historySection.style.display = 'block';
-    toggleHistoryButton.innerHTML = '<i class="bi bi-chevron-up"></i> Hide';
+    // Initialize history section as collapsed
+    historySection.style.display = 'none';
+    toggleHistoryButton.innerHTML = '<i class="bi bi-chevron-down"></i> Show';
+    
+    // Check for saved dark mode preference
+    if (localStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+        darkModeToggle.checked = true;
+    }
 });
 
 function setupEventListeners() {
@@ -84,30 +90,17 @@ function addTransaction() {
         type: type
     };
 
-    // Add animation
-    addTransactionButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Adding...';
-    
-    // Simulate processing delay
-    setTimeout(() => {
-        // Add to transactions array
-        transactions.push(newTransaction);
-        saveTransactionsToLocalStorage();
-        renderTransactions();
-        updateBalance();
+    // Add to transactions array
+    transactions.push(newTransaction);
+    saveTransactionsToLocalStorage();
+    renderTransactions();
+    updateBalance();
 
-        // Clear form
-        descriptionInput.value = '';
-        amountInput.value = '';
-        document.getElementById('incomeRadio').checked = true;
-        
-        // Show success animation
-        addTransactionButton.innerHTML = '<i class="bi bi-check-circle"></i> Added!';
-        setTimeout(() => {
-            addTransactionButton.innerHTML = '<i class="bi bi-plus-circle"></i> Add Transaction';
-        }, 1000);
-        
-        descriptionInput.focus();
-    }, 500);
+    // Clear form
+    descriptionInput.value = '';
+    amountInput.value = '';
+    document.getElementById('incomeRadio').checked = true;
+    descriptionInput.focus();
 }
 
 function renderTransactions() {
@@ -123,26 +116,29 @@ function renderTransactions() {
 
     transactions.forEach((transaction, index) => {
         const transactionItem = document.createElement('li');
-        transactionItem.className = `list-group-item d-flex justify-content-between align-items-center ${
-            transaction.amount < 0 ? 'list-group-item-danger' : 'list-group-item-success'
-        }`;
+        transactionItem.className = `list-group-item ${transaction.amount < 0 ? 'list-group-item-danger' : 'list-group-item-success'}`;
+        
+        const date = new Date(transaction.dateModified);
+        const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
         
         transactionItem.innerHTML = `
-            <span>
-                <strong>${transaction.description}</strong>
-                <div class="d-flex align-items-center mt-1">
-                    <small class="text-muted me-2">${new Date(transaction.dateModified).toLocaleString()}</small>
-                    <span class="badge rounded-pill ${transaction.amount < 0 ? 'bg-danger' : 'bg-success'}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <strong>${transaction.description}</strong>
+                    <div class="text-muted small mt-1">${formattedDate}</div>
+                </div>
+                <div class="text-end">
+                    <span class="badge ${transaction.amount < 0 ? 'bg-danger' : 'bg-success'} mb-1">
                         ${transaction.amount < 0 ? 'Owe' : 'Gain'}
                     </span>
+                    <div class="fw-bold">${transaction.amount < 0 ? '-$' : '$'}${Math.abs(transaction.amount).toFixed(2)}</div>
                 </div>
-            </span>
-            <span class="fw-bold">${transaction.amount < 0 ? '-$' : '$'}${Math.abs(transaction.amount).toFixed(2)}</span>
-            <div>
-                <button class="btn btn-sm btn-primary me-2 edit-transaction">
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-2">
+                <button class="btn btn-sm btn-outline-primary edit-transaction">
                     <i class="bi bi-pencil"></i>
                 </button>
-                <button class="btn btn-sm btn-danger delete-transaction">
+                <button class="btn btn-sm btn-outline-danger delete-transaction">
                     <i class="bi bi-trash"></i>
                 </button>
             </div>
@@ -174,9 +170,6 @@ function editTransaction(index) {
     saveTransactionButton.style.display = 'block';
     
     descriptionInput.focus();
-    
-    // Scroll to input section
-    document.querySelector('.input-section').scrollIntoView({ behavior: 'smooth' });
 }
 
 function saveTransaction() {
@@ -198,35 +191,24 @@ function saveTransaction() {
 
     const transactionAmount = type === 'expense' ? -Math.abs(amount) : Math.abs(amount);
     
-    // Add processing animation
-    saveTransactionButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Saving...';
+    transactions[currentEditIndex] = {
+        description,
+        amount: transactionAmount,
+        dateModified: new Date().toISOString(),
+        type: type
+    };
     
-    setTimeout(() => {
-        transactions[currentEditIndex] = {
-            description,
-            amount: transactionAmount,
-            dateModified: new Date().toISOString(),
-            type: type
-        };
-        
-        saveTransactionsToLocalStorage();
-        renderTransactions();
-        updateBalance();
+    saveTransactionsToLocalStorage();
+    renderTransactions();
+    updateBalance();
 
-        // Reset form
-        descriptionInput.value = '';
-        amountInput.value = '';
-        document.getElementById('incomeRadio').checked = true;
-        addTransactionButton.style.display = 'block';
-        saveTransactionButton.style.display = 'none';
-        currentEditIndex = null;
-        
-        // Show success animation
-        saveTransactionButton.innerHTML = '<i class="bi bi-check-circle"></i> Saved!';
-        setTimeout(() => {
-            saveTransactionButton.innerHTML = '<i class="bi bi-save"></i> Save Changes';
-        }, 1000);
-    }, 500);
+    // Reset form
+    descriptionInput.value = '';
+    amountInput.value = '';
+    document.getElementById('incomeRadio').checked = true;
+    addTransactionButton.style.display = 'block';
+    saveTransactionButton.style.display = 'none';
+    currentEditIndex = null;
 }
 
 function deleteTransaction(index) {
@@ -299,10 +281,4 @@ function showAlert(message, type) {
         alert.classList.remove('show');
         setTimeout(() => alert.remove(), 150);
     }, 3000);
-}
-
-// Check for saved dark mode preference
-if (localStorage.getItem('darkMode') === 'true') {
-    document.body.classList.add('dark-mode');
-    darkModeToggle.checked = true;
 }
