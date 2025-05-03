@@ -5,6 +5,8 @@ const addTransactionButton = document.getElementById('add-transaction');
 const saveTransactionButton = document.getElementById('save-transaction');
 const balanceElement = document.getElementById('balance');
 const historyList = document.getElementById('history-list');
+const historySection = document.getElementById('history-section');
+const toggleHistoryButton = document.getElementById('toggle-history');
 
 // Initialize transactions from localStorage or empty array
 let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
@@ -30,15 +32,17 @@ function setupEventListeners() {
         saveTransaction();
     });
 
-    // Other event listeners...
-    document.getElementById('toggle-history').addEventListener('click', toggleHistory);
+    // Toggle history button
+    toggleHistoryButton.addEventListener('click', toggleHistory);
+
+    // Export data button
     document.getElementById('export-data').addEventListener('click', exportData);
+
+    // Clear data button
     document.getElementById('clear-data').addEventListener('click', clearData);
 }
 
 function addTransaction() {
-    console.log("Add transaction button clicked"); // Debug log
-    
     const description = descriptionInput.value.trim();
     const amount = parseFloat(amountInput.value);
     const type = document.querySelector('input[name="transactionType"]:checked').value;
@@ -49,7 +53,7 @@ function addTransaction() {
         return;
     }
 
-    if (isNaN(amount) {
+    if (isNaN(amount)) {
         alert('Please enter a valid amount');
         return;
     }
@@ -116,7 +120,6 @@ function renderTransactions() {
     });
 }
 
-// ... (rest of your existing functions remain the same)
 function editTransaction(index) {
     const transaction = transactions[index];
     currentEditIndex = index;
