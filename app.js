@@ -31,13 +31,34 @@ const todoInput = document.getElementById('todo-input');
 const todoPriority = document.getElementById('todo-priority');
 const todoList = document.getElementById('todo-list');
 const todoProgress = document.getElementById('todo-progress');
+const sharedParticipantList = document.getElementById('shared-participant-list');
+const sharedParticipantForm = document.getElementById('shared-participant-form');
+const sharedParticipantInput = document.getElementById('shared-participant-input');
+const sharedExpenseForm = document.getElementById('shared-expense-form');
+const sharedExpenseDescription = document.getElementById('shared-expense-description');
+const sharedExpenseAmount = document.getElementById('shared-expense-amount');
+const sharedExpensePayer = document.getElementById('shared-expense-payer');
+const sharedExpenseParticipants = document.getElementById('shared-expense-participants');
+const sharedExpenseHistory = document.getElementById('shared-expense-history');
+const sharedExpenseSummary = document.getElementById('shared-expense-summary');
+const resetSharedBalancesButton = document.getElementById('reset-shared-balances');
+const sharedTodoForm = document.getElementById('shared-todo-form');
+const sharedTodoInput = document.getElementById('shared-todo-input');
+const sharedTodoList = document.getElementById('shared-todo-list');
+const sharedTodoProgress = document.getElementById('shared-todo-progress');
 
 let transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
 let editTransactionId = null;
 let todos = JSON.parse(localStorage.getItem('organizerTodos') || '[]');
+let sharedParticipants = JSON.parse(localStorage.getItem(SHARED_PARTICIPANTS_KEY) || '[]');
+let sharedExpenses = JSON.parse(localStorage.getItem(SHARED_EXPENSES_KEY) || '[]');
+let sharedTodos = JSON.parse(localStorage.getItem(SHARED_TODOS_KEY) || '[]');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
 const TODO_STORAGE_KEY = 'organizerTodos';
+const SHARED_PARTICIPANTS_KEY = 'sharedParticipants';
+const SHARED_EXPENSES_KEY = 'sharedExpenses';
+const SHARED_TODOS_KEY = 'sharedTodos';
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -118,6 +139,8 @@ const getFilteredTransactions = () => {
     return transactions.filter(t => t.category === activeCategoryFilter);
 };
 
+const generateId = () => Date.now() + Math.floor(Math.random() * 1000);
+
 const filterTransactions = () => {
     activeCategoryFilter = categoryFilter.value;
     displayTransactions();
@@ -141,6 +164,38 @@ const sortTodos = (list) => list
     });
 
 todos = Array.isArray(todos) ? todos.map((todo, index) => normalizeTodo(todo, index)) : [];
+sharedParticipants = Array.isArray(sharedParticipants)
+    ? sharedParticipants.map((participant, index) => ({
+        id: typeof participant.id === 'number' ? participant.id : generateId() + index,
+        name: participant.name || `Member ${index + 1}`
+    }))
+    : [];
+sharedExpenses = Array.isArray(sharedExpenses)
+    ? sharedExpenses.map(expense => ({
+        ...expense,
+        id: typeof expense.id === 'number' ? expense.id : generateId(),
+        amount: Number(expense.amount) || 0,
+        participantIds: Array.isArray(expense.participantIds) ? expense.participantIds : [],
+        date: expense.date || new Date().toISOString()
+    }))
+    : [];
+sharedTodos = Array.isArray(sharedTodos)
+    ? sharedTodos.map(todo => ({
+        id: typeof todo.id === 'number' ? todo.id : generateId(),
+        text: todo.text || 'Shared task',
+        completed: Boolean(todo.completed),
+        createdAt: todo.createdAt || new Date().toISOString()
+    }))
+    : [];
+
+if (!sharedParticipants.length) {
+    const baseId = Date.now();
+    sharedParticipants = [
+        { id: baseId, name: 'You' },
+        { id: baseId + 1, name: 'Roommate' }
+    ];
+    localStorage.setItem(SHARED_PARTICIPANTS_KEY, JSON.stringify(sharedParticipants));
+}
 
 const setActiveTab = (target) => {
     tabButtons.forEach(button => {
@@ -161,6 +216,18 @@ const setupTabs = () => {
 
 const saveTodos = () => {
     localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todos));
+};
+
+const saveSharedParticipants = () => {
+    localStorage.setItem(SHARED_PARTICIPANTS_KEY, JSON.stringify(sharedParticipants));
+};
+
+const saveSharedExpenses = () => {
+    localStorage.setItem(SHARED_EXPENSES_KEY, JSON.stringify(sharedExpenses));
+};
+
+const saveSharedTodos = () => {
+    localStorage.setItem(SHARED_TODOS_KEY, JSON.stringify(sharedTodos));
 };
 
 const updateTodoProgress = () => {
@@ -288,6 +355,187 @@ const deleteSubtask = (todoId, subtaskId) => {
     );
     saveTodos();
     renderTodos();
+};
+
+const getSharedBalances = () => {
+    const balances = {};
+    sharedParticipants.forEach(participant => { balances[participant.id] = 0; });
+    sharedExpenses.forEach(expense => {
+        const participants = expense.participantIds.length ? expense.participantIds : sharedParticipants.map(p => p.id);
+        const share = participants.length ? expense.amount / participants.length : 0;
+        participants.forEach(id => {
+            if (id === expense.payerId) {
+                balances[id] += expense.amount - share;
+            } else {
+                balances[id] -= share;
+            }
+        });
+    });
+    return balances;
+};
+
+const updateSharedExpenseControls = () => {
+    if (!sharedExpensePayer || !sharedExpenseParticipants) return;
+    sharedExpensePayer.innerHTML = sharedParticipants
+        .map(participant => `<option value="${participant.id}">${participant.name}</option>`)
+        .join('');
+    
+    sharedExpenseParticipants.innerHTML = sharedParticipants
+        .map(participant => `
+            <label class="form-check form-check-inline d-flex align-items-center gap-1">
+                <input class="form-check-input" type="checkbox" value="${participant.id}" checked>
+                <span>${participant.name}</span>
+            </label>
+        `).join('');
+};
+
+const renderSharedParticipants = () => {
+    if (!sharedParticipantList) return;
+    const balances = getSharedBalances();
+    
+    if (!sharedParticipants.length) {
+        sharedParticipantList.innerHTML = '<li class="text-muted">Add someone to get started</li>';
+        return;
+    }
+    
+    sharedParticipantList.innerHTML = sharedParticipants
+        .map(participant => {
+            const balance = balances[participant.id] || 0;
+            const balanceClass = balance >= 0 ? 'text-success' : 'text-danger';
+            return `
+                <li class="shared-balance">
+                    <strong>${participant.name}</strong>
+                    <span class="${balanceClass}">${formatCurrency(balance, { includePlus: true })}</span>
+                </li>
+            `;
+        })
+        .join('');
+};
+
+const renderSharedExpenseHistory = () => {
+    if (!sharedExpenseHistory) return;
+    if (!sharedExpenses.length) {
+        sharedExpenseHistory.innerHTML = '<li class="list-group-item text-center text-muted py-4">No shared expenses yet</li>';
+        sharedExpenseSummary.textContent = 'No expenses yet';
+        return;
+    }
+    
+    const total = sharedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    sharedExpenseSummary.textContent = `${sharedExpenses.length} expenses · ${formatCurrency(total)}`;
+    
+    sharedExpenseHistory.innerHTML = sharedExpenses
+        .slice()
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .map(expense => {
+            const payer = sharedParticipants.find(p => p.id === expense.payerId);
+            const participants = expense.participantIds
+                .map(id => sharedParticipants.find(p => p.id === id)?.name || 'Unknown')
+                .join(', ');
+            return `
+                <li class="list-group-item" data-id="${expense.id}">
+                    <div>
+                        <div class="fw-semibold">${expense.description}</div>
+                        <div class="text-muted small">Paid by ${payer?.name || 'Unknown'} · Split with ${participants}</div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="shared-expense-chip">${formatCurrency(expense.amount)}</span>
+                        <button class="btn btn-sm btn-outline-danger" data-shared-action="delete-expense">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </li>
+            `;
+        })
+        .join('');
+};
+
+const addSharedParticipant = (name) => {
+    if (!name) return;
+    sharedParticipants.push({ id: generateId(), name });
+    saveSharedParticipants();
+    updateSharedExpenseControls();
+    renderSharedParticipants();
+};
+
+const addSharedExpense = (description, amount, payerId, participantIds) => {
+    const expenseParticipants = participantIds.length ? participantIds : sharedParticipants.map(p => p.id);
+    if (!expenseParticipants.includes(payerId)) {
+        expenseParticipants.push(payerId);
+    }
+    sharedExpenses.push({
+        id: generateId(),
+        description,
+        amount,
+        payerId,
+        participantIds: expenseParticipants,
+        date: new Date().toISOString()
+    });
+    saveSharedExpenses();
+    renderSharedExpenseHistory();
+    renderSharedParticipants();
+};
+
+const resetSharedExpenses = () => {
+    sharedExpenses = [];
+    saveSharedExpenses();
+    renderSharedExpenseHistory();
+    renderSharedParticipants();
+};
+
+const updateSharedTodoProgress = () => {
+    if (!sharedTodoProgress) return;
+    const completed = sharedTodos.filter(todo => todo.completed).length;
+    sharedTodoProgress.textContent = `${completed} of ${sharedTodos.length} done`;
+};
+
+const renderSharedTodos = () => {
+    if (!sharedTodoList) return;
+    sharedTodoList.innerHTML = '';
+    
+    if (!sharedTodos.length) {
+        sharedTodoList.innerHTML = '<li class="list-group-item text-muted text-center py-3">No shared tasks yet</li>';
+        updateSharedTodoProgress();
+        return;
+    }
+    
+    sharedTodoList.innerHTML = sharedTodos
+        .map(todo => `
+            <li class="list-group-item d-flex justify-content-between align-items-center" data-id="${todo.id}">
+                <div class="d-flex align-items-center gap-2">
+                    <input class="form-check-input" type="checkbox" ${todo.completed ? 'checked' : ''} data-role="shared-todo-toggle">
+                    <span class="${todo.completed ? 'text-decoration-line-through text-muted' : ''}">${todo.text}</span>
+                </div>
+                <button class="btn btn-sm btn-outline-danger" data-shared-action="delete-shared-todo">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </li>
+        `)
+        .join('');
+    
+    updateSharedTodoProgress();
+};
+
+const addSharedTodo = (text) => {
+    sharedTodos.push({
+        id: generateId(),
+        text,
+        completed: false,
+        createdAt: new Date().toISOString()
+    });
+    saveSharedTodos();
+    renderSharedTodos();
+};
+
+const toggleSharedTodo = (id) => {
+    sharedTodos = sharedTodos.map(todo => todo.id === id ? { ...todo, completed: !todo.completed } : todo);
+    saveSharedTodos();
+    renderSharedTodos();
+};
+
+const deleteSharedTodo = (id) => {
+    sharedTodos = sharedTodos.filter(todo => todo.id !== id);
+    saveSharedTodos();
+    renderSharedTodos();
 };
 
 const renderCategoryPills = () => {
@@ -855,6 +1103,72 @@ todoList?.addEventListener('click', (e) => {
     }
 });
 
+sharedParticipantForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = sharedParticipantInput.value.trim();
+    if (!name) return;
+    addSharedParticipant(name);
+    sharedParticipantForm.reset();
+});
+
+sharedExpenseForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const description = sharedExpenseDescription.value.trim();
+    const amount = parseFloat(sharedExpenseAmount.value);
+    const payerId = parseInt(sharedExpensePayer.value);
+    const selected = Array.from(sharedExpenseParticipants.querySelectorAll('input[type="checkbox"]:checked'))
+        .map(input => parseInt(input.value));
+    
+    if (!description || isNaN(amount) || amount <= 0 || !payerId) {
+        alert('Please complete the shared expense form');
+        return;
+    }
+    
+    addSharedExpense(description, amount, payerId, selected);
+    sharedExpenseForm.reset();
+    updateSharedExpenseControls();
+});
+
+sharedExpenseHistory?.addEventListener('click', (e) => {
+    const item = e.target.closest('li[data-id]');
+    if (!item) return;
+    if (!e.target.closest('[data-shared-action="delete-expense"]')) return;
+    const id = parseInt(item.dataset.id);
+    sharedExpenses = sharedExpenses.filter(expense => expense.id !== id);
+    saveSharedExpenses();
+    renderSharedExpenseHistory();
+    renderSharedParticipants();
+});
+
+resetSharedBalancesButton?.addEventListener('click', () => {
+    if (confirm('Clear all shared expenses?')) {
+        resetSharedExpenses();
+    }
+});
+
+sharedTodoForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = sharedTodoInput.value.trim();
+    if (!text) return;
+    addSharedTodo(text);
+    sharedTodoForm.reset();
+});
+
+sharedTodoList?.addEventListener('change', (e) => {
+    const item = e.target.closest('li[data-id]');
+    if (!item) return;
+    if (!e.target.matches('input[type="checkbox"][data-role="shared-todo-toggle"]')) return;
+    toggleSharedTodo(parseInt(item.dataset.id));
+});
+
+sharedTodoList?.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-shared-action="delete-shared-todo"]');
+    if (!button) return;
+    const item = button.closest('li[data-id]');
+    if (!item) return;
+    deleteSharedTodo(parseInt(item.dataset.id));
+});
+
 themeModeSelect?.addEventListener('change', () => {
     const mode = themeModeSelect.value;
     localStorage.setItem(THEME_STORAGE_KEY, mode);
@@ -878,6 +1192,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabs();
     setActiveTab('finance');
     renderTodos();
+    renderSharedParticipants();
+    updateSharedExpenseControls();
+    renderSharedExpenseHistory();
+    renderSharedTodos();
     
     transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
     updateBalance();

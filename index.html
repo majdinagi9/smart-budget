@@ -366,6 +366,47 @@
             min-width: 32px;
         }
 
+        .shared-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+        }
+
+        .shared-balance {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .shared-balance strong {
+            font-size: 1.1rem;
+        }
+
+        .shared-expense-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            background: rgba(13, 110, 253, 0.1);
+            font-size: 0.85rem;
+        }
+
+        #shared-expense-history .list-group-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #shared-todo-list .list-group-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
         @media (max-width: 576px) {
             .accent-controls, .theme-controls {
                 width: 100%;
@@ -410,6 +451,9 @@
             </button>
             <button class="btn btn-outline-primary" data-tab-target="organizer">
                 <i class="bi bi-check2-square me-1"></i> Organizer
+            </button>
+            <button class="btn btn-outline-primary" data-tab-target="shared">
+                <i class="bi bi-people me-1"></i> Shared Expenses
             </button>
         </div>
 
@@ -579,6 +623,83 @@
                 </div>
             </div>
         </div> <!-- end organizer panel -->
+
+        <div class="tab-panel" data-tab-panel="shared">
+            <div class="shared-grid mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h2 class="mb-1">Housemates & Balances</h2>
+                                <p class="text-muted mb-0">Track who owes what.</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" id="reset-shared-balances">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        </div>
+                        <ul id="shared-participant-list" class="list-unstyled mb-3"></ul>
+                        <form id="shared-participant-form" class="input-group">
+                            <input type="text" id="shared-participant-input" class="form-control" placeholder="Add person" required>
+                            <button class="btn btn-primary" type="submit">
+                                <i class="bi bi-person-plus"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h2 class="mb-3">Split Expense</h2>
+                        <form id="shared-expense-form" class="row g-2">
+                            <div class="col-12">
+                                <input type="text" id="shared-expense-description" class="form-control" placeholder="Description" required>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <input type="number" id="shared-expense-amount" class="form-control" placeholder="Amount" step="0.01" min="0.01" required>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <select id="shared-expense-payer" class="form-select" required></select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small text-muted">Split between</label>
+                                <div id="shared-expense-participants" class="d-flex flex-wrap gap-2"></div>
+                            </div>
+                            <div class="col-12">
+                                <button class="btn btn-primary w-100" type="submit">
+                                    <i class="bi bi-scissors"></i> Log Split
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="mb-0">Shared Expense History</h2>
+                        <span class="text-muted small" id="shared-expense-summary">No expenses yet</span>
+                    </div>
+                    <ul id="shared-expense-history" class="list-group"></ul>
+                </div>
+            </div>
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h2 class="mb-1">Shared To-dos</h2>
+                            <p class="text-muted mb-0">Track chores and shared follow-ups.</p>
+                        </div>
+                        <span class="badge bg-info" id="shared-todo-progress">0 of 0 done</span>
+                    </div>
+                    <form id="shared-todo-form" class="input-group mb-3">
+                        <input type="text" id="shared-todo-input" class="form-control" placeholder="Add shared task" required>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+                    </form>
+                    <ul id="shared-todo-list" class="list-group"></ul>
+                </div>
+            </div>
+        </div> <!-- end shared panel -->
     </div>
 
     <button id="mobile-add-btn" class="btn btn-success shadow">
