@@ -29,26 +29,35 @@
             --income-color: #28a745;
             --expense-color: #dc3545;
             --primary-color: #0d6efd;
+            --accent-color: #0d6efd;
+            --accent-color-soft: rgba(13, 110, 253, 0.15);
+            --card-bg: #ffffff;
+            --card-border: #dee2e6;
         }
         
         body {
             background-color: #f8f9fa;
             transition: all 0.3s ease;
+            color: #212529;
         }
         
         body.dark-mode {
             background-color: #212529;
             color: #f8f9fa;
+            --card-bg: #2c3034;
+            --card-border: #3c4044;
         }
         
         body.dark-mode .card {
-            background-color: #2c3034;
-            border-color: #495057;
+            background-color: var(--card-bg);
+            border-color: var(--card-border);
         }
         
         .card {
             border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            background-color: var(--card-bg);
+            border-color: var(--card-border);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             transition: transform 0.3s ease;
         }
         
@@ -109,6 +118,13 @@
             transition: transform 0.2s ease;
             border-radius: 8px !important;
             margin-bottom: 8px;
+            border-color: var(--card-border);
+            background-color: var(--card-bg);
+        }
+
+        .list-group-item[data-transaction]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
         }
         
         #mobile-add-btn {
@@ -139,6 +155,144 @@
             .btn-sm {
                 padding: 0.25rem 0.5rem;
             }
+        }
+
+        .accent-controls, .theme-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .accent-options {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .accent-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            background-clip: padding-box;
+        }
+
+        .accent-swatch:focus-visible {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        .accent-swatch.active {
+            border-color: currentColor;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .insight-card {
+            border-radius: 16px;
+            padding: 1.25rem;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            box-shadow: 0 10px 25px rgba(13, 110, 253, 0.08);
+            height: 100%;
+            transition: transform 0.2s ease;
+        }
+
+        .insight-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .insight-label {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6c757d;
+        }
+
+        body.dark-mode .insight-label {
+            color: #ced4da;
+        }
+
+        .insight-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .insight-meta {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        body.dark-mode .insight-meta {
+            color: #adb5bd;
+        }
+
+        .category-pill-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .category-pill {
+            border-radius: 999px;
+            padding: 0.4rem 0.9rem;
+            border: 1px solid transparent;
+            background: rgba(0, 0, 0, 0.03);
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+        }
+
+        .category-pill:hover {
+            transform: translateY(-2px);
+        }
+
+        .category-pill.active {
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+        }
+
+        .category-hint {
+            min-height: 38px;
+        }
+
+        .category-guidance {
+            min-height: 32px;
+            padding: 0.5rem;
+            border-radius: 0.75rem;
+            background: var(--accent-color-soft);
+        }
+
+        .group-header {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: var(--card-bg);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6c757d;
+        }
+
+        body.dark-mode .group-header {
+            color: #adb5bd;
+        }
+
+        #add-transaction,
+        #save-transaction {
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        #add-transaction:hover,
+        #save-transaction:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+        }
+
+        #add-transaction:active,
+        #save-transaction:active {
+            transform: scale(0.98);
         }
 
         .category-badge {
@@ -174,15 +328,68 @@
         #category-filter {
             min-width: 150px;
         }
+
+        @media (max-width: 576px) {
+            .accent-controls, .theme-controls {
+                width: 100%;
+            }
+            .accent-options {
+                justify-content: space-between;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="text-center mb-0">Personal Finance Tracker</h1>
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="darkModeToggle">
-                <label class="form-check-label" for="darkModeToggle"><i class="bi bi-moon"></i></label>
+        <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-4">
+            <div>
+                <h1 class="mb-1">Personal Finance Tracker</h1>
+                <p class="text-muted mb-0">Stay on top of every gain and owe with real-time insights.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-3 ms-md-auto w-100 w-md-auto">
+                <div class="theme-controls flex-grow-1 flex-md-grow-0">
+                    <label for="themeMode" class="form-label text-muted small mb-0">Theme</label>
+                    <select id="themeMode" class="form-select form-select-sm">
+                        <option value="auto">System</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+                <div class="accent-controls flex-grow-1 flex-md-grow-0">
+                    <span class="form-label text-muted small mb-0">Accent</span>
+                    <div id="accent-options" class="accent-options">
+                        <button type="button" class="accent-swatch active" data-accent="#0d6efd" aria-label="Blue accent" style="background-color: #0d6efd; color: #0d6efd;"></button>
+                        <button type="button" class="accent-swatch" data-accent="#20c997" aria-label="Teal accent" style="background-color: #20c997; color: #20c997;"></button>
+                        <button type="button" class="accent-swatch" data-accent="#6f42c1" aria-label="Purple accent" style="background-color: #6f42c1; color: #6f42c1;"></button>
+                        <button type="button" class="accent-swatch" data-accent="#fd7e14" aria-label="Orange accent" style="background-color: #fd7e14; color: #fd7e14;"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-md-4">
+                <div class="insight-card h-100">
+                    <div class="insight-label">Total Gain</div>
+                    <div class="insight-value positive" id="insight-income">$0.00</div>
+                    <div class="insight-meta"><i class="bi bi-arrow-up-right"></i> Great job building momentum</div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="insight-card h-100">
+                    <div class="insight-label">Total Owe</div>
+                    <div class="insight-value negative" id="insight-expense">$0.00</div>
+                    <div class="insight-meta"><i class="bi bi-lightning-charge"></i> Keep essentials covered first</div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="insight-card h-100">
+                    <div class="insight-label">Top Category</div>
+                    <div class="insight-value" id="insight-top-category">No data yet</div>
+                    <div class="insight-meta">
+                        <span id="insight-top-category-amount">$0.00</span> spent · Last 7 days: <span id="insight-recent">$0.00</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -204,25 +411,11 @@
                                    pattern="[0-9]*">
                         </div>
                         <div class="col-12 col-md-3">
-                            <select id="category" class="form-select" required>
-                                <option value="">Select Category</option>
-                                <optgroup label="Income">
-                                    <option value="salary" data-color="#28a745">Salary</option>
-                                    <option value="freelance" data-color="#20c997">Freelance</option>
-                                    <option value="investments" data-color="#198754">Investments</option>
-                                    <option value="other-income" data-color="#25ba4e">Other Income</option>
-                                </optgroup>
-                                <optgroup label="Expenses">
-                                    <option value="food" data-color="#dc3545">Food & Dining</option>
-                                    <option value="transport" data-color="#fd7e14">Transport</option>
-                                    <option value="bills" data-color="#6f42c1">Bills & Utilities</option>
-                                    <option value="shopping" data-color="#e83e8c">Shopping</option>
-                                    <option value="entertainment" data-color="#0dcaf0">Entertainment</option>
-                                    <option value="health" data-color="#20c997">Healthcare</option>
-                                    <option value="education" data-color="#0d6efd">Education</option>
-                                    <option value="other-expense" data-color="#6c757d">Other Expense</option>
-                                </optgroup>
-                            </select>
+                            <div id="category-pill-group" class="category-pill-group"></div>
+                            <input type="hidden" id="category" required>
+                            <small id="category-hint" class="text-muted d-block mt-2 category-hint">
+                                Choose a category to see smart tips.
+                            </small>
                         </div>
                         <div class="col-12 col-md-2">
                             <div class="d-flex gap-3">
@@ -234,6 +427,9 @@
                                     <input class="form-check-input" type="radio" name="transactionType" id="expenseRadio" value="expense">
                                     <label class="form-check-label" for="expenseRadio">Owe</label>
                                 </div>
+                            </div>
+                            <div id="category-guidance" class="category-guidance text-muted small mt-2">
+                                Picking a category will auto-select the right type.
                             </div>
                         </div>
                     </div>
