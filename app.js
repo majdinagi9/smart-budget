@@ -13,6 +13,8 @@ const toggleHistoryButton = document.getElementById('toggle-history');
 const exportDataButton = document.getElementById('export-data');
 const clearDataButton = document.getElementById('clear-data');
 const mobileAddButton = document.getElementById('mobile-add-btn');
+const tabButtons = document.querySelectorAll('[data-tab-target]');
+const tabPanels = document.querySelectorAll('[data-tab-panel]');
 const categoryPillGroup = document.getElementById('category-pill-group');
 const categoryHint = document.getElementById('category-hint');
 const categoryGuidance = document.getElementById('category-guidance');
@@ -24,11 +26,18 @@ const insightTopCategory = document.getElementById('insight-top-category');
 const insightTopCategoryAmount = document.getElementById('insight-top-category-amount');
 const insightRecent = document.getElementById('insight-recent');
 const categoryBalanceIndicator = document.getElementById('category-balance-indicator');
+const todoForm = document.getElementById('todo-form');
+const todoInput = document.getElementById('todo-input');
+const todoPriority = document.getElementById('todo-priority');
+const todoList = document.getElementById('todo-list');
+const todoProgress = document.getElementById('todo-progress');
 
 let transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
 let editTransactionId = null;
+let todos = JSON.parse(localStorage.getItem('organizerTodos') || '[]');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
+const TODO_STORAGE_KEY = 'organizerTodos';
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -77,6 +86,11 @@ const hexToRgba = (hex, alpha = 1) => {
 const DEFAULT_CATEGORY_HINT = 'Choose a category to see smart tips.';
 const DEFAULT_GUIDANCE = 'Picking a category will auto-select the right type.';
 let activeCategoryFilter = categoryFilter?.value || '';
+const TODO_PRIORITY_META = {
+    high: { label: 'High', className: 'bg-danger' },
+    normal: { label: 'Normal', className: 'bg-secondary' },
+    low: { label: 'Low', className: 'bg-success' }
+};
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -106,6 +120,94 @@ const filterTransactions = () => {
     activeCategoryFilter = categoryFilter.value;
     displayTransactions();
     updateBalance();
+};
+
+const setActiveTab = (target) => {
+    tabButtons.forEach(button => {
+        const isActive = button.dataset.tabTarget === target;
+        button.classList.toggle('active', isActive);
+    });
+    tabPanels.forEach(panel => {
+        const isActive = panel.dataset.tabPanel === target;
+        panel.classList.toggle('active', isActive);
+    });
+};
+
+const setupTabs = () => {
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => setActiveTab(button.dataset.tabTarget));
+    });
+};
+
+const saveTodos = () => {
+    localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todos));
+};
+
+const updateTodoProgress = () => {
+    if (!todoProgress) return;
+    const completed = todos.filter(todo => todo.completed).length;
+    todoProgress.textContent = `${completed} of ${todos.length} complete`;
+};
+
+const renderTodos = () => {
+    if (!todoList) return;
+    todoList.innerHTML = '';
+    
+    if (todos.length === 0) {
+        todoList.innerHTML = '<li class="list-group-item text-center text-muted py-4">No tasks yet</li>';
+        updateTodoProgress();
+        return;
+    }
+    
+    todos
+        .slice()
+        .sort((a, b) => Number(a.completed) - Number(b.completed))
+        .forEach(todo => {
+            const meta = TODO_PRIORITY_META[todo.priority] || TODO_PRIORITY_META.normal;
+            const li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.dataset.id = todo.id;
+            li.innerHTML = `
+                <div class="todo-meta flex-grow-1">
+                    <input class="form-check-input me-2" type="checkbox" ${todo.completed ? 'checked' : ''}>
+                    <span class="${todo.completed ? 'text-decoration-line-through text-muted' : ''}">${todo.text}</span>
+                    <span class="badge ${meta.className}">${meta.label}</span>
+                </div>
+                <div class="todo-actions d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" data-action="delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `;
+            todoList.appendChild(li);
+        });
+    
+    updateTodoProgress();
+};
+
+const addTodo = (text, priority) => {
+    const todo = {
+        id: Date.now(),
+        text,
+        priority,
+        completed: false,
+        createdAt: new Date().toISOString()
+    };
+    todos.push(todo);
+    saveTodos();
+    renderTodos();
+};
+
+const toggleTodo = (id) => {
+    todos = todos.map(todo => todo.id === id ? { ...todo, completed: !todo.completed } : todo);
+    saveTodos();
+    renderTodos();
+};
+
+const deleteTodo = (id) => {
+    todos = todos.filter(todo => todo.id !== id);
+    saveTodos();
+    renderTodos();
 };
 
 const renderCategoryPills = () => {
@@ -624,6 +726,31 @@ categoryPillGroup?.addEventListener('click', (e) => {
     setActiveCategory(pill.dataset.value);
 });
 
+todoForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = todoInput.value.trim();
+    if (!text) return;
+    addTodo(text, todoPriority.value);
+    todoForm.reset();
+    todoInput.focus();
+});
+
+todoList?.addEventListener('change', (e) => {
+    const checkbox = e.target.closest('input[type="checkbox"]');
+    if (!checkbox) return;
+    const listItem = checkbox.closest('li');
+    if (!listItem) return;
+    toggleTodo(parseInt(listItem.dataset.id));
+});
+
+todoList?.addEventListener('click', (e) => {
+    const deleteBtn = e.target.closest('[data-action="delete"]');
+    if (!deleteBtn) return;
+    const listItem = deleteBtn.closest('li');
+    if (!listItem) return;
+    deleteTodo(parseInt(listItem.dataset.id));
+});
+
 themeModeSelect?.addEventListener('change', () => {
     const mode = themeModeSelect.value;
     localStorage.setItem(THEME_STORAGE_KEY, mode);
@@ -644,6 +771,9 @@ mobileAddButton.addEventListener('click', () => {
 document.addEventListener('DOMContentLoaded', () => {
     renderCategoryPills();
     initializeThemeControls();
+    setupTabs();
+    setActiveTab('finance');
+    renderTodos();
     
     transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
     updateBalance();

@@ -329,6 +329,43 @@
             min-width: 150px;
         }
 
+        .tab-nav .btn {
+            border-radius: 999px;
+            transition: all 0.2s ease;
+        }
+
+        .tab-nav .btn.active {
+            color: #fff;
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            box-shadow: 0 8px 18px rgba(13, 110, 253, 0.25);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        #todo-list .list-group-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #todo-list .todo-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        #todo-list .todo-actions button {
+            min-width: 32px;
+        }
+
         @media (max-width: 576px) {
             .accent-controls, .theme-controls {
                 width: 100%;
@@ -367,6 +404,16 @@
             </div>
         </div>
 
+        <div class="d-flex flex-wrap gap-2 mb-4 tab-nav">
+            <button class="btn btn-outline-primary active" data-tab-target="finance">
+                <i class="bi bi-wallet2 me-1"></i> Finance
+            </button>
+            <button class="btn btn-outline-primary" data-tab-target="organizer">
+                <i class="bi bi-check2-square me-1"></i> Organizer
+            </button>
+        </div>
+
+        <div class="tab-panel active" data-tab-panel="finance">
         <div class="row g-3 mb-4">
             <div class="col-12 col-md-4">
                 <div class="insight-card h-100">
@@ -477,6 +524,9 @@
                                 <option value="other-expense">Other Expense</option>
                             </optgroup>
                         </select>
+                        <div class="text-muted small text-end" id="category-balance-indicator">
+                            All categories · Balance $0.00
+                        </div>
                         <button id="toggle-history" class="btn btn-info btn-sm">
                             <i class="bi bi-chevron-down"></i> Show
                         </button>
@@ -496,6 +546,39 @@
                 <i class="bi bi-trash"></i> Clear All Data
             </button>
         </div>
+        </div> <!-- end finance panel -->
+
+        <div class="tab-panel" data-tab-panel="organizer">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h2 class="mb-1">Organizer</h2>
+                            <p class="text-muted mb-0">Capture quick todos and stay on top of priorities.</p>
+                        </div>
+                        <span class="badge bg-primary" id="todo-progress">0 of 0 complete</span>
+                    </div>
+                    <form id="todo-form" class="row g-2 mb-3">
+                        <div class="col-12 col-md-8">
+                            <input type="text" id="todo-input" class="form-control" placeholder="Add new task" required>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="input-group">
+                                <select id="todo-priority" class="form-select">
+                                    <option value="normal">Normal</option>
+                                    <option value="high">High</option>
+                                    <option value="low">Low</option>
+                                </select>
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="bi bi-plus-circle me-1"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    <ul id="todo-list" class="list-group"></ul>
+                </div>
+            </div>
+        </div> <!-- end organizer panel -->
     </div>
 
     <button id="mobile-add-btn" class="btn btn-success shadow">
