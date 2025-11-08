@@ -1,6 +1,8 @@
 // DOM Elements
 const descriptionInput = document.getElementById('description');
 const amountInput = document.getElementById('amount');
+const categorySelect = document.getElementById('category');
+const categoryFilter = document.getElementById('category-filter');
 const addTransactionButton = document.getElementById('add-transaction');
 const saveTransactionButton = document.getElementById('save-transaction');
 const balanceElement = document.getElementById('balance');
@@ -8,6 +10,306 @@ const historyList = document.getElementById('history-list');
 const historySection = document.getElementById('history-section');
 const toggleHistoryButton = document.getElementById('toggle-history');
 const exportDataButton = document.getElementById('export-data');
+const clearDataButton = document.getElementById('clear-data');
+const darkModeToggle = document.getElementById('darkModeToggle');
+const mobileAddButton = document.getElementById('mobile-add-btn');
+
+// Category Management
+const getCategoryColor = (categoryValue) => {
+    const option = categorySelect.querySelector(`option[value="${categoryValue}"]`);
+    return option ? option.dataset.color : '#6c757d';
+};
+
+const getCategoryName = (categoryValue) => {
+    const option = categorySelect.querySelector(`option[value="${categoryValue}"]`);
+    return option ? option.textContent : 'Uncategorized';
+};
+
+const filterTransactions = () => {
+    const selectedCategory = categoryFilter.value;
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    
+    const filteredTransactions = selectedCategory
+        ? transactions.filter(t => t.category === selectedCategory)
+        : transactions;
+    
+    displayTransactions(filteredTransactions);
+};
+
+// Transaction Management
+function addTransaction(e) {
+    e.preventDefault();
+    
+    const description = descriptionInput.value.trim();
+    const amount = parseFloat(amountInput.value);
+    const type = document.querySelector('input[name="transactionType"]:checked').value;
+    const category = categorySelect.value;
+    
+    if (!description || isNaN(amount) || !category) {
+        alert('Please fill in all fields (description, amount, and category)');
+        return;
+    }
+    
+    const transaction = {
+        id: Date.now(),
+        description,
+        amount,
+        type,
+        category,
+        date: new Date().toISOString()
+    };
+
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    transactions.push(transaction);
+    localStorage.setItem('transactions', JSON.stringify(transactions));
+
+    descriptionInput.value = '';
+    amountInput.value = '';
+    categorySelect.value = '';
+
+    updateBalance();
+    displayTransactions(transactions);
+}
+
+function createTransactionElement(transaction) {
+    const li = document.createElement('li');
+    li.className = 'list-group-item';
+    li.dataset.id = transaction.id;
+
+    const transactionAmount = transaction.type === 'income' ? 
+        `+${transaction.amount}` : 
+        `-${transaction.amount}`;
+
+    const categoryColor = getCategoryColor(transaction.category);
+    const categoryName = getCategoryName(transaction.category);
+
+    li.innerHTML = `
+        <div class="transaction-details">
+            <div class="transaction-info">
+                <div class="fw-bold">${transaction.description}</div>
+                <div class="transaction-meta">
+                    <span class="category-badge" style="background-color: ${categoryColor}">${categoryName}</span>
+                    <span>${new Date(transaction.date).toLocaleDateString()}</span>
+                </div>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <span class="${transaction.type === 'income' ? 'positive' : 'negative'} fw-bold">$${transactionAmount}</span>
+                <button class="btn btn-sm btn-outline-primary edit-btn">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger delete-btn">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    return li;
+}
+
+function displayTransactions(transactions) {
+    historyList.innerHTML = '';
+    transactions
+        .sort((a, b) => b.id - a.id)
+        .forEach(transaction => {
+            const element = createTransactionElement(transaction);
+            historyList.appendChild(element);
+        });
+}
+
+function deleteTransaction(id) {
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    const updatedTransactions = transactions.filter(t => t.id !== id);
+    localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
+    
+    updateBalance();
+    displayTransactions(updatedTransactions);
+}
+
+function startEdit(transaction) {
+    descriptionInput.value = transaction.description;
+    amountInput.value = transaction.amount;
+    categorySelect.value = transaction.category;
+    document.querySelector(`input[value="${transaction.type}"]`).checked = true;
+    
+    addTransactionButton.style.display = 'none';
+    saveTransactionButton.style.display = 'block';
+    saveTransactionButton.dataset.editId = transaction.id;
+}
+
+function saveEdit(e) {
+    e.preventDefault();
+    
+    const editId = parseInt(saveTransactionButton.dataset.editId);
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    const transactionIndex = transactions.findIndex(t => t.id === editId);
+    
+    if (transactionIndex === -1) return;
+    
+    transactions[transactionIndex] = {
+        ...transactions[transactionIndex],
+        description: descriptionInput.value.trim(),
+        amount: parseFloat(amountInput.value),
+        type: document.querySelector('input[name="transactionType"]:checked').value,
+        category: categorySelect.value
+    };
+    
+    localStorage.setItem('transactions', JSON.stringify(transactions));
+    
+    descriptionInput.value = '';
+    amountInput.value = '';
+    categorySelect.value = '';
+    
+    addTransactionButton.style.display = 'block';
+    saveTransactionButton.style.display = 'none';
+    delete saveTransactionButton.dataset.editId;
+    
+    updateBalance();
+    displayTransactions(transactions);
+}
+
+function updateBalance() {
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    const balance = transactions.reduce((acc, transaction) => {
+        return transaction.type === 'income' 
+            ? acc + transaction.amount 
+            : acc - transaction.amount;
+    }, 0);
+    
+    balanceElement.textContent = `$${balance.toFixed(2)}`;
+    balanceElement.className = `balance-display fs-2 fw-bold ${balance >= 0 ? 'positive' : 'negative'}`;
+}
+
+function exportToCSV() {
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    if (transactions.length === 0) {
+        alert('No transactions to export');
+        return;
+    }
+    
+    const csvContent = [
+        ['Date', 'Description', 'Category', 'Type', 'Amount'],
+        ...transactions.map(t => [
+            new Date(t.date).toLocaleDateString(),
+            t.description,
+            getCategoryName(t.category),
+            t.type,
+            t.type === 'income' ? t.amount : -t.amount
+        ])
+    ]
+    .map(row => row.map(cell => `"${cell}"`).join(','))
+    .join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+}
+
+// Event Listeners
+addTransactionButton.addEventListener('click', addTransaction);
+saveTransactionButton.addEventListener('click', saveEdit);
+clearDataButton.addEventListener('click', () => {
+    if (confirm('Are you sure you want to clear all transactions? This cannot be undone.')) {
+        localStorage.removeItem('transactions');
+        updateBalance();
+        displayTransactions([]);
+    }
+});
+
+exportDataButton.addEventListener('click', exportToCSV);
+
+toggleHistoryButton.addEventListener('click', () => {
+    const isHidden = historySection.style.display === 'none';
+    historySection.style.display = isHidden ? 'block' : 'none';
+    toggleHistoryButton.innerHTML = `<i class="bi bi-chevron-${isHidden ? 'up' : 'down'}"></i> ${isHidden ? 'Hide' : 'Show'}`;
+});
+
+historyList.addEventListener('click', (e) => {
+    const listItem = e.target.closest('.list-group-item');
+    if (!listItem) return;
+    
+    if (e.target.closest('.delete-btn')) {
+        if (confirm('Are you sure you want to delete this transaction?')) {
+            deleteTransaction(parseInt(listItem.dataset.id));
+        }
+    } else if (e.target.closest('.edit-btn')) {
+        const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+        const transaction = transactions.find(t => t.id === parseInt(listItem.dataset.id));
+        if (transaction) startEdit(transaction);
+    }
+});
+
+categorySelect.addEventListener('change', () => {
+    const isIncome = categorySelect.value.includes('salary') || 
+                    categorySelect.value.includes('freelance') || 
+                    categorySelect.value.includes('investments') ||
+                    categorySelect.value.includes('other-income');
+    
+    document.getElementById(isIncome ? 'incomeRadio' : 'expenseRadio').checked = true;
+});
+
+categoryFilter.addEventListener('change', filterTransactions);
+
+darkModeToggle.addEventListener('change', () => {
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('darkMode', darkModeToggle.checked);
+});
+
+mobileAddButton.addEventListener('click', () => {
+    document.querySelector('.input-section').scrollIntoView({ behavior: 'smooth' });
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    const darkMode = localStorage.getItem('darkMode') === 'true';
+    
+    updateBalance();
+    displayTransactions(transactions);
+    
+    if (darkMode) {
+        darkModeToggle.checked = true;
+        document.body.classList.add('dark-mode');
+    }
+});
+const toggleHistoryButton = document.getElementById('toggle-history');
+const exportDataButton = document.getElementById('export-data');
+
+// Category Management
+const getCategoryColor = (categoryValue) => {
+    const option = categorySelect.querySelector(`option[value="${categoryValue}"]`);
+    return option ? option.dataset.color : '#6c757d';
+};
+
+const getCategoryName = (categoryValue) => {
+    const option = categorySelect.querySelector(`option[value="${categoryValue}"]`);
+    return option ? option.textContent : 'Uncategorized';
+};
+
+const filterTransactions = () => {
+    const selectedCategory = categoryFilter.value;
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    
+    const filteredTransactions = selectedCategory
+        ? transactions.filter(t => t.category === selectedCategory)
+        : transactions;
+    
+    displayTransactions(filteredTransactions);
+};
+
+// Event Listeners
+categorySelect.addEventListener('change', () => {
+    const isIncome = categorySelect.value.includes('salary') || 
+                    categorySelect.value.includes('freelance') || 
+                    categorySelect.value.includes('investments') ||
+                    categorySelect.value.includes('other-income');
+    
+    document.getElementById(isIncome ? 'incomeRadio' : 'expenseRadio').checked = true;
+});
+
+categoryFilter.addEventListener('change', filterTransactions);
 const clearDataButton = document.getElementById('clear-data');
 const darkModeToggle = document.getElementById('darkModeToggle');
 const mobileAddButton = document.getElementById('mobile-add-btn');
