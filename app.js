@@ -78,9 +78,18 @@ const DEFAULT_CATEGORY_HINT = 'Choose a category to see smart tips.';
 const DEFAULT_GUIDANCE = 'Picking a category will auto-select the right type.';
 let activeCategoryFilter = categoryFilter?.value || '';
 
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+});
+
 const formatCurrency = (value, { includePlus = false } = {}) => {
-    const sign = value < 0 ? '-' : (includePlus ? '+' : '');
-    return `${sign}$${Math.abs(value).toFixed(2)}`;
+    const base = currencyFormatter.format(Math.abs(value));
+    if (value < 0) return `-${base}`;
+    if (value > 0 && includePlus) return `+${base}`;
+    return base;
 };
 
 const calculateNet = (list = []) => list.reduce((sum, transaction) => {
@@ -265,8 +274,11 @@ function createTransactionElement(transaction) {
     li.dataset.id = transaction.id;
     li.dataset.transaction = 'true';
 
-    const normalizedAmount = Math.abs(transaction.amount).toFixed(2);
-    const transactionAmount = `${transaction.type === 'income' ? '+' : '-'}${normalizedAmount}`;
+    const normalizedAmount = Math.abs(transaction.amount);
+    const signedAmount = transaction.type === 'income'
+        ? normalizedAmount
+        : -normalizedAmount;
+    const transactionAmount = formatCurrency(signedAmount, { includePlus: true });
 
     const categoryColor = getCategoryColor(transaction.category);
     const categoryName = getCategoryName(transaction.category);
@@ -282,7 +294,7 @@ function createTransactionElement(transaction) {
                 </div>
             </div>
             <div class="d-flex gap-2 align-items-center">
-                <span class="${transaction.type === 'income' ? 'positive' : 'negative'} fw-bold">$${transactionAmount}</span>
+                <span class="${transaction.type === 'income' ? 'positive' : 'negative'} fw-bold">${transactionAmount}</span>
                 <button class="btn btn-sm btn-outline-primary edit-btn">
                     <i class="bi bi-pencil"></i>
                 </button>
@@ -491,8 +503,8 @@ function updateInsights() {
         .filter(t => t.type === 'expense')
         .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
     
-    insightIncome.textContent = `$${totalIncome.toFixed(2)}`;
-    insightExpense.textContent = `-$${totalExpense.toFixed(2)}`;
+    insightIncome.textContent = formatCurrency(totalIncome);
+    insightExpense.textContent = formatCurrency(-totalExpense);
     
     const expenseByCategory = transactions
         .filter(t => t.type === 'expense')
@@ -506,10 +518,10 @@ function updateInsights() {
     
     if (topCategoryEntry) {
         insightTopCategory.textContent = getCategoryName(topCategoryEntry[0]);
-        insightTopCategoryAmount.textContent = `-$${topCategoryEntry[1].toFixed(2)}`;
+        insightTopCategoryAmount.textContent = formatCurrency(-topCategoryEntry[1]);
     } else {
         insightTopCategory.textContent = 'No data yet';
-        insightTopCategoryAmount.textContent = '$0.00';
+        insightTopCategoryAmount.textContent = formatCurrency(0);
     }
     
     const sevenDaysAgo = new Date();
@@ -521,7 +533,7 @@ function updateInsights() {
         .filter(t => parseTransactionDate(t) >= sevenDaysAgo)
         .reduce((sum, t) => sum + Math.abs(t.amount), 0);
     
-    insightRecent.textContent = `-$${recentExpense.toFixed(2)}`;
+    insightRecent.textContent = formatCurrency(-recentExpense);
 }
 
 function exportToCSV() {
