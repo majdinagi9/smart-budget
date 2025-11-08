@@ -403,9 +403,14 @@ const renderSharedParticipants = () => {
             const balance = balances[participant.id] || 0;
             const balanceClass = balance >= 0 ? 'text-success' : 'text-danger';
             return `
-                <li class="shared-balance">
+                <li class="shared-balance" data-id="${participant.id}">
                     <strong>${participant.name}</strong>
-                    <span class="${balanceClass}">${formatCurrency(balance, { includePlus: true })}</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="${balanceClass}">${formatCurrency(balance, { includePlus: true })}</span>
+                        <button class="btn btn-sm btn-outline-danger" data-shared-action="delete-participant">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
                 </li>
             `;
         })
@@ -452,6 +457,18 @@ const renderSharedExpenseHistory = () => {
 const addSharedParticipant = (name) => {
     if (!name) return;
     sharedParticipants.push({ id: generateId(), name });
+    saveSharedParticipants();
+    updateSharedExpenseControls();
+    renderSharedParticipants();
+};
+
+const deleteSharedParticipant = (participantId) => {
+    const hasExpenses = sharedExpenses.some(expense => expense.payerId === participantId || expense.participantIds.includes(participantId));
+    if (hasExpenses) {
+        alert('Please delete expenses involving this person before removing them.');
+        return;
+    }
+    sharedParticipants = sharedParticipants.filter(participant => participant.id !== participantId);
     saveSharedParticipants();
     updateSharedExpenseControls();
     renderSharedParticipants();
@@ -1109,6 +1126,14 @@ sharedParticipantForm?.addEventListener('submit', (e) => {
     if (!name) return;
     addSharedParticipant(name);
     sharedParticipantForm.reset();
+});
+
+sharedParticipantList?.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-shared-action="delete-participant"]');
+    if (!button) return;
+    const item = button.closest('li[data-id]');
+    if (!item) return;
+    deleteSharedParticipant(parseInt(item.dataset.id));
 });
 
 sharedExpenseForm?.addEventListener('submit', (e) => {
