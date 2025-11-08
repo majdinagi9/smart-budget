@@ -91,6 +91,8 @@ const TODO_PRIORITY_META = {
     normal: { label: 'Normal', className: 'bg-secondary' },
     low: { label: 'Low', className: 'bg-success' }
 };
+const TODO_PRIORITY_ORDER = { high: 3, normal: 2, low: 1 };
+const MAX_ORDER_VALUE = 100;
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -121,6 +123,24 @@ const filterTransactions = () => {
     displayTransactions();
     updateBalance();
 };
+
+const normalizeTodo = (todo, index = 0) => ({
+    ...todo,
+    order: typeof todo.order === 'number' ? todo.order : Math.min((index + 1) * 10, MAX_ORDER_VALUE),
+    subtasks: Array.isArray(todo.subtasks) ? todo.subtasks : []
+});
+
+const sortTodos = (list) => list
+    .slice()
+    .sort((a, b) => {
+        const priorityDiff = (TODO_PRIORITY_ORDER[b.priority] || 0) - (TODO_PRIORITY_ORDER[a.priority] || 0);
+        if (priorityDiff !== 0) return priorityDiff;
+        const orderDiff = (a.order ?? 50) - (b.order ?? 50);
+        if (orderDiff !== 0) return orderDiff;
+        return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+
+todos = Array.isArray(todos) ? todos.map((todo, index) => normalizeTodo(todo, index)) : [];
 
 const setActiveTab = (target) => {
     tabButtons.forEach(button => {
@@ -159,28 +179,52 @@ const renderTodos = () => {
         return;
     }
     
-    todos
-        .slice()
-        .sort((a, b) => Number(a.completed) - Number(b.completed))
-        .forEach(todo => {
-            const meta = TODO_PRIORITY_META[todo.priority] || TODO_PRIORITY_META.normal;
-            const li = document.createElement('li');
-            li.className = 'list-group-item';
-            li.dataset.id = todo.id;
-            li.innerHTML = `
-                <div class="todo-meta flex-grow-1">
-                    <input class="form-check-input me-2" type="checkbox" ${todo.completed ? 'checked' : ''}>
+    sortTodos(todos).forEach(todo => {
+        const meta = TODO_PRIORITY_META[todo.priority] || TODO_PRIORITY_META.normal;
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+        li.dataset.id = todo.id;
+
+        const subtaskMarkup = todo.subtasks.length
+            ? `<ul class="list-group list-group-flush small ms-4 mt-2">
+                ${todo.subtasks.map(subtask => `
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div class="d-flex align-items-center gap-2">
+                            <input class="form-check-input" type="checkbox" data-role="subtodo-toggle" data-subtask-id="${subtask.id}" ${subtask.completed ? 'checked' : ''}>
+                            <span class="${subtask.completed ? 'text-decoration-line-through text-muted' : ''}">${subtask.text}</span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" data-action="delete-subtask" data-subtask-id="${subtask.id}">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </li>
+                `).join('')}
+            </ul>`
+            : '';
+
+        li.innerHTML = `
+            <div class="flex-grow-1">
+                <div class="todo-meta">
+                    <input class="form-check-input me-2" type="checkbox" data-role="todo-toggle" ${todo.completed ? 'checked' : ''}>
                     <span class="${todo.completed ? 'text-decoration-line-through text-muted' : ''}">${todo.text}</span>
                     <span class="badge ${meta.className}">${meta.label}</span>
                 </div>
-                <div class="todo-actions d-flex gap-2">
-                    <button class="btn btn-sm btn-outline-secondary" data-action="delete">
-                        <i class="bi bi-trash"></i>
-                    </button>
+                ${subtaskMarkup}
+                <div class="d-flex align-items-center gap-2 mt-2">
+                    <i class="bi bi-arrows-move text-muted"></i>
+                    <input type="range" class="form-range todo-order-slider" min="0" max="${MAX_ORDER_VALUE}" value="${todo.order ?? 50}">
                 </div>
-            `;
-            todoList.appendChild(li);
-        });
+            </div>
+            <div class="todo-actions d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary" data-action="add-subtask">
+                    <i class="bi bi-node-plus"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" data-action="delete">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+        todoList.appendChild(li);
+    });
     
     updateTodoProgress();
 };
@@ -191,7 +235,9 @@ const addTodo = (text, priority) => {
         text,
         priority,
         completed: false,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        order: Math.min((todos.length + 1) * 10, MAX_ORDER_VALUE),
+        subtasks: []
     };
     todos.push(todo);
     saveTodos();
@@ -206,6 +252,50 @@ const toggleTodo = (id) => {
 
 const deleteTodo = (id) => {
     todos = todos.filter(todo => todo.id !== id);
+    saveTodos();
+    renderTodos();
+};
+
+const updateTodoOrder = (id, order) => {
+    todos = todos.map(todo => todo.id === id ? { ...todo, order } : todo);
+    saveTodos();
+    renderTodos();
+};
+
+const addSubtask = (todoId, text) => {
+    if (!text) return;
+    const newSubtask = {
+        id: Date.now(),
+        text,
+        completed: false
+    };
+    todos = todos.map(todo => todo.id === todoId
+        ? { ...todo, subtasks: [...todo.subtasks, newSubtask] }
+        : todo
+    );
+    saveTodos();
+    renderTodos();
+};
+
+const toggleSubtask = (todoId, subtaskId) => {
+    todos = todos.map(todo => todo.id === todoId
+        ? {
+            ...todo,
+            subtasks: todo.subtasks.map(subtask =>
+                subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
+            )
+        }
+        : todo
+    );
+    saveTodos();
+    renderTodos();
+};
+
+const deleteSubtask = (todoId, subtaskId) => {
+    todos = todos.map(todo => todo.id === todoId
+        ? { ...todo, subtasks: todo.subtasks.filter(subtask => subtask.id !== subtaskId) }
+        : todo
+    );
     saveTodos();
     renderTodos();
 };
@@ -738,17 +828,49 @@ todoForm?.addEventListener('submit', (e) => {
 todoList?.addEventListener('change', (e) => {
     const checkbox = e.target.closest('input[type="checkbox"]');
     if (!checkbox) return;
-    const listItem = checkbox.closest('li');
-    if (!listItem) return;
-    toggleTodo(parseInt(listItem.dataset.id));
+    const todoItem = checkbox.closest('li[data-id]');
+    if (!todoItem) return;
+    const todoId = parseInt(todoItem.dataset.id);
+    
+    if (checkbox.dataset.role === 'todo-toggle') {
+        toggleTodo(todoId);
+    } else if (checkbox.dataset.role === 'subtodo-toggle') {
+        const subtaskId = parseInt(checkbox.dataset.subtaskId);
+        toggleSubtask(todoId, subtaskId);
+    }
+});
+
+todoList?.addEventListener('input', (e) => {
+    const slider = e.target.closest('.todo-order-slider');
+    if (!slider) return;
+    const todoItem = slider.closest('li[data-id]');
+    if (!todoItem) return;
+    updateTodoOrder(parseInt(todoItem.dataset.id), parseInt(slider.value, 10));
 });
 
 todoList?.addEventListener('click', (e) => {
-    const deleteBtn = e.target.closest('[data-action="delete"]');
-    if (!deleteBtn) return;
-    const listItem = deleteBtn.closest('li');
-    if (!listItem) return;
-    deleteTodo(parseInt(listItem.dataset.id));
+    const todoItem = e.target.closest('li[data-id]');
+    if (!todoItem) return;
+    const todoId = parseInt(todoItem.dataset.id);
+    
+    if (e.target.closest('[data-action="delete"]')) {
+        deleteTodo(todoId);
+        return;
+    }
+    
+    if (e.target.closest('[data-action="add-subtask"]')) {
+        const text = prompt('Sub-task description');
+        if (text && text.trim()) {
+            addSubtask(todoId, text.trim());
+        }
+        return;
+    }
+    
+    const deleteSubtaskBtn = e.target.closest('[data-action="delete-subtask"]');
+    if (deleteSubtaskBtn) {
+        const subtaskId = parseInt(deleteSubtaskBtn.dataset.subtaskId);
+        deleteSubtask(todoId, subtaskId);
+    }
 });
 
 themeModeSelect?.addEventListener('change', () => {
