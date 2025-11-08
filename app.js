@@ -6,6 +6,7 @@ const categoryFilter = document.getElementById('category-filter');
 const addTransactionButton = document.getElementById('add-transaction');
 const saveTransactionButton = document.getElementById('save-transaction');
 const balanceElement = document.getElementById('balance');
+const balanceScope = document.getElementById('balance-scope');
 const historyList = document.getElementById('history-list');
 const historySection = document.getElementById('history-section');
 const toggleHistoryButton = document.getElementById('toggle-history');
@@ -22,6 +23,7 @@ const insightExpense = document.getElementById('insight-expense');
 const insightTopCategory = document.getElementById('insight-top-category');
 const insightTopCategoryAmount = document.getElementById('insight-top-category-amount');
 const insightRecent = document.getElementById('insight-recent');
+const categoryBalanceIndicator = document.getElementById('category-balance-indicator');
 
 let transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
 let editTransactionId = null;
@@ -74,14 +76,27 @@ const hexToRgba = (hex, alpha = 1) => {
 
 const DEFAULT_CATEGORY_HINT = 'Choose a category to see smart tips.';
 const DEFAULT_GUIDANCE = 'Picking a category will auto-select the right type.';
+let activeCategoryFilter = categoryFilter?.value || '';
+
+const formatCurrency = (value, { includePlus = false } = {}) => {
+    const sign = value < 0 ? '-' : (includePlus ? '+' : '');
+    return `${sign}$${Math.abs(value).toFixed(2)}`;
+};
+
+const calculateNet = (list = []) => list.reduce((sum, transaction) => {
+    const amount = Math.abs(transaction.amount);
+    return transaction.type === 'income' ? sum + amount : sum - amount;
+}, 0);
+
+const getFilteredTransactions = () => {
+    if (!activeCategoryFilter) return transactions;
+    return transactions.filter(t => t.category === activeCategoryFilter);
+};
 
 const filterTransactions = () => {
-    const selectedCategory = categoryFilter.value;
-    const filteredTransactions = selectedCategory
-        ? transactions.filter(t => t.category === selectedCategory)
-        : transactions;
-    
-    displayTransactions(filteredTransactions);
+    activeCategoryFilter = categoryFilter.value;
+    displayTransactions();
+    updateBalance();
 };
 
 const renderCategoryPills = () => {
@@ -281,16 +296,17 @@ function createTransactionElement(transaction) {
     return li;
 }
 
-function displayTransactions(list = transactions) {
+function displayTransactions(list) {
     historyList.innerHTML = '';
+    const data = Array.isArray(list) ? list : getFilteredTransactions();
     
-    if (list.length === 0) {
+    if (data.length === 0) {
         const message = transactions.length === 0 
             ? 'No transactions yet'
             : 'No transactions match this view';
         historyList.innerHTML = `<li class="list-group-item text-center py-4 text-muted">${message}</li>`;
     } else {
-        const grouped = list.reduce((acc, transaction) => {
+        const grouped = data.reduce((acc, transaction) => {
             const sourceDate = transaction.date || transaction.dateModified || new Date().toISOString();
             const isoKey = sourceDate.split('T')[0];
             const timestamp = new Date(sourceDate).getTime();
@@ -437,16 +453,32 @@ function saveEdit(e) {
 }
 
 function updateBalance() {
-    const balance = transactions.reduce((acc, transaction) => {
-        const amount = Math.abs(transaction.amount);
-        return transaction.type === 'income' 
-            ? acc + amount 
-            : acc - amount;
-    }, 0);
+    const filteredList = getFilteredTransactions();
+    const totalNet = calculateNet(transactions);
+    const filteredNet = calculateNet(filteredList);
+    const valueToShow = activeCategoryFilter ? filteredNet : totalNet;
     
-    balanceElement.textContent = `$${balance.toFixed(2)}`;
-    balanceElement.className = `balance-display fs-2 fw-bold ${balance >= 0 ? 'positive' : 'negative'}`;
+    balanceElement.textContent = formatCurrency(valueToShow);
+    balanceElement.className = `balance-display fs-2 fw-bold ${valueToShow >= 0 ? 'positive' : 'negative'}`;
+    
+    if (balanceScope) {
+        balanceScope.textContent = activeCategoryFilter
+            ? `${getCategoryName(activeCategoryFilter)} · ${formatCurrency(filteredNet)}`
+            : `All categories · ${formatCurrency(totalNet)}`;
+    }
+    
+    updateCategoryBalanceIndicator(filteredList);
     updateInsights();
+}
+
+function updateCategoryBalanceIndicator(list = []) {
+    if (!categoryBalanceIndicator) return;
+    const label = activeCategoryFilter ? getCategoryName(activeCategoryFilter) : 'All categories';
+    const net = calculateNet(list);
+    const formatted = formatCurrency(net, { includePlus: true });
+    categoryBalanceIndicator.textContent = `${label} · Balance ${formatted}`;
+    categoryBalanceIndicator.classList.toggle('text-success', net >= 0);
+    categoryBalanceIndicator.classList.toggle('text-danger', net < 0);
 }
 
 function updateInsights() {
