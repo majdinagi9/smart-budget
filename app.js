@@ -192,8 +192,7 @@ sharedTodos = Array.isArray(sharedTodos)
 if (!sharedParticipants.length) {
     const baseId = Date.now();
     sharedParticipants = [
-        { id: baseId, name: 'You' },
-        { id: baseId + 1, name: 'Roommate' }
+        { id: baseId, name: 'You' }
     ];
     localStorage.setItem(SHARED_PARTICIPANTS_KEY, JSON.stringify(sharedParticipants));
 }
