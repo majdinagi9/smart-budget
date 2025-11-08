@@ -22,6 +22,7 @@ const insightExpense = document.getElementById('insight-expense');
 const insightTopCategory = document.getElementById('insight-top-category');
 const insightTopCategoryAmount = document.getElementById('insight-top-category-amount');
 const insightRecent = document.getElementById('insight-recent');
+const categoryBalanceIndicator = document.getElementById('category-balance-indicator');
 
 let transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
 let editTransactionId = null;
@@ -74,14 +75,11 @@ const hexToRgba = (hex, alpha = 1) => {
 
 const DEFAULT_CATEGORY_HINT = 'Choose a category to see smart tips.';
 const DEFAULT_GUIDANCE = 'Picking a category will auto-select the right type.';
+let activeCategoryFilter = categoryFilter?.value || '';
 
 const filterTransactions = () => {
-    const selectedCategory = categoryFilter.value;
-    const filteredTransactions = selectedCategory
-        ? transactions.filter(t => t.category === selectedCategory)
-        : transactions;
-    
-    displayTransactions(filteredTransactions);
+    activeCategoryFilter = categoryFilter.value;
+    displayTransactions();
 };
 
 const renderCategoryPills = () => {
@@ -283,14 +281,15 @@ function createTransactionElement(transaction) {
 
 function displayTransactions(list = transactions) {
     historyList.innerHTML = '';
+    const data = list ?? getFilteredTransactions();
     
-    if (list.length === 0) {
+    if (data.length === 0) {
         const message = transactions.length === 0 
             ? 'No transactions yet'
             : 'No transactions match this view';
         historyList.innerHTML = `<li class="list-group-item text-center py-4 text-muted">${message}</li>`;
     } else {
-        const grouped = list.reduce((acc, transaction) => {
+        const grouped = data.reduce((acc, transaction) => {
             const sourceDate = transaction.date || transaction.dateModified || new Date().toISOString();
             const isoKey = sourceDate.split('T')[0];
             const timestamp = new Date(sourceDate).getTime();
@@ -319,6 +318,8 @@ function displayTransactions(list = transactions) {
                     });
             });
     }
+
+    updateCategoryBalanceIndicator(data);
 
     const hasTransactions = transactions.length > 0;
     if (!hasTransactions) {
@@ -359,6 +360,19 @@ const isSameDay = (a, b) =>
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
+
+const updateCategoryBalanceIndicator = (list) => {
+    if (!categoryBalanceIndicator) return;
+    const label = activeCategoryFilter ? getCategoryName(activeCategoryFilter) : 'All categories';
+    const net = list.reduce((sum, transaction) => {
+        const amount = Math.abs(transaction.amount);
+        return transaction.type === 'income' ? sum + amount : sum - amount;
+    }, 0);
+    const formatted = `${net >= 0 ? '+' : '-'}$${Math.abs(net).toFixed(2)}`;
+    categoryBalanceIndicator.textContent = `${label} · Balance ${formatted}`;
+    categoryBalanceIndicator.classList.toggle('text-success', net >= 0);
+    categoryBalanceIndicator.classList.toggle('text-danger', net < 0);
+};
 
 function deleteTransaction(id) {
     transactions = transactions.filter(t => t.id !== id);
@@ -605,3 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBalance();
     displayTransactions();
 });
+const getFilteredTransactions = () => {
+    if (!activeCategoryFilter) return transactions;
+    return transactions.filter(t => t.category === activeCategoryFilter);
+};
