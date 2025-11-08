@@ -209,10 +209,6 @@ const renderTodos = () => {
                     <span class="badge ${meta.className}">${meta.label}</span>
                 </div>
                 ${subtaskMarkup}
-                <div class="d-flex align-items-center gap-2 mt-2">
-                    <i class="bi bi-arrows-move text-muted"></i>
-                    <input type="range" class="form-range todo-order-slider" min="0" max="${MAX_ORDER_VALUE}" value="${todo.order ?? 50}">
-                </div>
             </div>
             <div class="todo-actions d-flex gap-2">
                 <button class="btn btn-sm btn-outline-primary" data-action="add-subtask">
@@ -252,12 +248,6 @@ const toggleTodo = (id) => {
 
 const deleteTodo = (id) => {
     todos = todos.filter(todo => todo.id !== id);
-    saveTodos();
-    renderTodos();
-};
-
-const updateTodoOrder = (id, order) => {
-    todos = todos.map(todo => todo.id === id ? { ...todo, order } : todo);
     saveTodos();
     renderTodos();
 };
@@ -838,14 +828,6 @@ todoList?.addEventListener('change', (e) => {
         const subtaskId = parseInt(checkbox.dataset.subtaskId);
         toggleSubtask(todoId, subtaskId);
     }
-});
-
-todoList?.addEventListener('input', (e) => {
-    const slider = e.target.closest('.todo-order-slider');
-    if (!slider) return;
-    const todoItem = slider.closest('li[data-id]');
-    if (!todoItem) return;
-    updateTodoOrder(parseInt(todoItem.dataset.id), parseInt(slider.value, 10));
 });
 
 todoList?.addEventListener('click', (e) => {
