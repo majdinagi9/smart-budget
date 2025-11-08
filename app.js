@@ -47,18 +47,19 @@ const sharedTodoInput = document.getElementById('shared-todo-input');
 const sharedTodoList = document.getElementById('shared-todo-list');
 const sharedTodoProgress = document.getElementById('shared-todo-progress');
 
-let transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-let editTransactionId = null;
-let todos = JSON.parse(localStorage.getItem('organizerTodos') || '[]');
-let sharedParticipants = JSON.parse(localStorage.getItem(SHARED_PARTICIPANTS_KEY) || '[]');
-let sharedExpenses = JSON.parse(localStorage.getItem(SHARED_EXPENSES_KEY) || '[]');
-let sharedTodos = JSON.parse(localStorage.getItem(SHARED_TODOS_KEY) || '[]');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
 const TODO_STORAGE_KEY = 'organizerTodos';
 const SHARED_PARTICIPANTS_KEY = 'sharedParticipants';
 const SHARED_EXPENSES_KEY = 'sharedExpenses';
 const SHARED_TODOS_KEY = 'sharedTodos';
+
+let transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+let editTransactionId = null;
+let todos = JSON.parse(localStorage.getItem(TODO_STORAGE_KEY) || '[]');
+let sharedParticipants = JSON.parse(localStorage.getItem(SHARED_PARTICIPANTS_KEY) || '[]');
+let sharedExpenses = JSON.parse(localStorage.getItem(SHARED_EXPENSES_KEY) || '[]');
+let sharedTodos = JSON.parse(localStorage.getItem(SHARED_TODOS_KEY) || '[]');
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
