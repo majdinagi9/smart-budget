@@ -1144,6 +1144,26 @@ const populateElevenVoiceSelect = (voices = []) => {
     }
 };
 
+const matchesElevenVoiceLanguage = (voice, language) => {
+    if (!language) return true;
+    const target = language.toLowerCase();
+    const targetRoot = target.split('-')[0];
+
+    const labelLanguage = voice.labels?.language?.toLowerCase() || '';
+    const accent = voice.labels?.accent?.toLowerCase() || '';
+    const locale = voice.language?.toLowerCase() || voice.category?.toLowerCase() || '';
+
+    const haystack = [labelLanguage, accent, locale, voice.name?.toLowerCase() || ''];
+
+    return haystack.some((value) => value.includes(target) || value.includes(targetRoot));
+};
+
+const filterElevenVoicesForLanguage = (voices = [], language) => {
+    if (!language) return voices;
+    const filtered = voices.filter((voice) => matchesElevenVoiceLanguage(voice, language));
+    return filtered.length ? filtered : voices;
+};
+
 const fetchElevenVoices = async () => {
     if (!elevenApiKeyInput) return [];
     const apiKey = elevenApiKeyInput.value.trim();
@@ -1165,8 +1185,13 @@ const fetchElevenVoices = async () => {
 
         const data = await response.json();
         elevenVoices = data.voices || [];
-        populateElevenVoiceSelect(elevenVoices);
-        setElevenStatus(`Loaded ${elevenVoices.length} ElevenLabs voices.`, 'success');
+        const preferredLanguage = communicationLanguageSelect?.value;
+        const filteredVoices = filterElevenVoicesForLanguage(elevenVoices, preferredLanguage);
+        populateElevenVoiceSelect(filteredVoices);
+        const filteredNote = preferredLanguage && filteredVoices.length !== elevenVoices.length
+            ? ` (${filteredVoices.length} filtered for ${preferredLanguage})`
+            : '';
+        setElevenStatus(`Loaded ${elevenVoices.length} ElevenLabs voices${filteredNote}.`, 'success');
         return elevenVoices;
     } catch (error) {
         console.error('ElevenLabs voices error', error);
@@ -1200,6 +1225,7 @@ const speakWithElevenLabs = async (text, language = 'en-US') => {
 
     const apiKey = elevenApiKeyInput.value.trim();
     const voiceId = elevenVoiceSelect.value;
+    const languageCode = language || 'en-US';
 
     try {
         setElevenStatus('Generating speech with ElevenLabs...', 'muted');
@@ -1212,6 +1238,7 @@ const speakWithElevenLabs = async (text, language = 'en-US') => {
             body: JSON.stringify({
                 text,
                 model_id: ELEVEN_MODEL_ID,
+                language_code: languageCode,
                 voice_settings: {
                     stability: 0.5,
                     similarity_boost: 0.8
@@ -1735,6 +1762,10 @@ communicationForm?.addEventListener('submit', handleCommunicationFormSubmit);
 communicationImageInput?.addEventListener('change', handleCommunicationImageChange);
 communicationLanguageSelect?.addEventListener('change', () => {
     populateVoiceOptions(communicationLanguageSelect.value);
+    if (elevenVoices.length) {
+        const filtered = filterElevenVoicesForLanguage(elevenVoices, communicationLanguageSelect.value);
+        populateElevenVoiceSelect(filtered);
+    }
 });
 previewVoiceButton?.addEventListener('click', () => previewSelectedVoice());
 elevenRefreshVoicesButton?.addEventListener('click', () => {
