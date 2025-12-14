@@ -820,6 +820,31 @@
                                         <small class="text-muted">Install more system voices to expand this list.</small>
                                     </div>
                                 </div>
+                                <div class="border rounded p-3 bg-light-subtle">
+                                    <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                                        <div class="flex-grow-1">
+                                            <label class="form-label mb-1" for="eleven-api-key">ElevenLabs API key</label>
+                                            <input type="password" id="eleven-api-key" class="form-control" placeholder="Paste your secret key" autocomplete="off">
+                                            <small class="text-muted">Stored locally in your browser for richer AI voices.</small>
+                                        </div>
+                                        <div class="form-check ms-auto mt-3">
+                                            <input class="form-check-input" type="checkbox" id="eleven-enable">
+                                            <label class="form-check-label" for="eleven-enable">Use ElevenLabs</label>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2 flex-wrap align-items-start">
+                                        <select id="eleven-voice" class="form-select flex-grow-1">
+                                            <option value="">Pick an ElevenLabs voice</option>
+                                        </select>
+                                        <button type="button" class="btn btn-outline-secondary" id="eleven-refresh-voices">
+                                            <i class="bi bi-arrow-repeat"></i> Load voices
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary" id="eleven-preview-voice">
+                                            <i class="bi bi-soundwave"></i> Test
+                                        </button>
+                                    </div>
+                                    <small id="eleven-status" class="text-muted d-block mt-2">Enter your key and load voices to use ElevenLabs playback.</small>
+                                </div>
                                 <div>
                                     <label class="form-label" for="communication-image">Picture (optional)</label>
                                     <input type="file" id="communication-image" class="form-control" accept="image/*">
