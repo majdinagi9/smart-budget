@@ -46,8 +46,9 @@ const communicationForm = document.getElementById('communication-form');
 const communicationTitleInput = document.getElementById('communication-title');
 const communicationPhraseInput = document.getElementById('communication-phrase');
 const communicationLanguageSelect = document.getElementById('communication-language');
-const communicationVoiceSelect = document.getElementById('communication-voice');
-const previewVoiceButton = document.getElementById('preview-voice');
+const communicationRecordButton = document.getElementById('communication-record');
+const communicationPlayRecordingButton = document.getElementById('communication-play-recording');
+const communicationRecordingStatus = document.getElementById('communication-recording-status');
 const communicationImageInput = document.getElementById('communication-image');
 const communicationPreview = document.getElementById('communication-preview');
 const communicationGrid = document.getElementById('communication-grid');
@@ -69,6 +70,11 @@ let sharedParticipants = JSON.parse(localStorage.getItem(SHARED_PARTICIPANTS_KEY
 let sharedExpenses = JSON.parse(localStorage.getItem(SHARED_EXPENSES_KEY) || '[]');
 let communicationItems = JSON.parse(localStorage.getItem(COMMUNICATION_ITEMS_KEY) || '[]');
 let editingCommunicationId = null;
+let communicationAudioData = '';
+let mediaRecorder = null;
+let recordingStream = null;
+let recordingChunks = [];
+let activeAudioElement = null;
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -132,7 +138,8 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         emoji: '🧃',
         language: 'en-US',
         color: '#0d6efd',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-snack',
@@ -141,7 +148,8 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         emoji: '🍎',
         language: 'en-US',
         color: '#fd7e14',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-bathroom',
@@ -150,7 +158,8 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         emoji: '🚻',
         language: 'en-US',
         color: '#20c997',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-help',
@@ -159,7 +168,8 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         emoji: '🆘',
         language: 'en-US',
         color: '#dc3545',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-break',
@@ -168,7 +178,8 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         emoji: '🧸',
         language: 'en-US',
         color: '#6f42c1',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-spanish-greeting',
@@ -177,7 +188,8 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         emoji: '😊',
         language: 'es-ES',
         color: '#17a2b8',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-ar-hello',
@@ -187,7 +199,7 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         language: 'ar-SA',
         color: '#0d6efd',
         isCustom: false,
-        voiceId: ''
+        audioData: ''
     },
     {
         id: 'comm-ar-thanks',
@@ -197,7 +209,7 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         language: 'ar-SA',
         color: '#20c997',
         isCustom: false,
-        voiceId: ''
+        audioData: ''
     }
 ];
 
@@ -271,7 +283,7 @@ communicationItems = Array.isArray(communicationItems)
         title: item.title || 'New card',
         phrase: item.phrase || '',
         language: item.language || 'en-US',
-        voiceId: item.voiceId || '',
+        audioData: item.audioData || '',
         emoji: item.emoji || '💬',
         color: item.color || '#0d6efd',
         imageData: item.imageData || '',
@@ -1072,172 +1084,155 @@ const nextCommunicationColor = (index) => {
     return palette[index % palette.length];
 };
 
-const getAvailableVoices = () => {
-    if (!window.speechSynthesis || !window.speechSynthesis.getVoices) return [];
-    return window.speechSynthesis.getVoices();
+const normalizeCommunicationItems = () => {
+    communicationItems = communicationItems.map((item, index) => {
+        const { voiceId, ...rest } = item;
+        return {
+            ...rest,
+            audioData: item.audioData || '',
+            color: rest.color || nextCommunicationColor(index)
+        };
+    });
+    saveCommunicationItems();
 };
 
-const VOICE_QUALITY_PATTERN = /google|microsoft|amazon|apple|samsung|neural|ai|natural|realistic|human|premium|studio|arabic/i;
-
-const getVoiceId = (voice) => (voice ? `${voice.name}|||${voice.lang}` : '');
-
-const findVoiceById = (voiceId) => {
-    if (!voiceId) return null;
-    return getAvailableVoices().find((voice) => getVoiceId(voice) === voiceId) || null;
+const setRecordingStatus = (message, tone = 'muted') => {
+    if (!communicationRecordingStatus) return;
+    communicationRecordingStatus.textContent = message;
+    communicationRecordingStatus.classList.toggle('text-danger', tone === 'error');
+    communicationRecordingStatus.classList.toggle('text-success', tone === 'success');
+    communicationRecordingStatus.classList.toggle('text-muted', tone === 'muted');
 };
 
-const separateVoicesByQuality = (voices) => voices.reduce((acc, voice) => {
-    const bucket = VOICE_QUALITY_PATTERN.test(voice.name || '') ? 'recommended' : 'general';
-    acc[bucket].push(voice);
-    return acc;
-}, { recommended: [], general: [] });
-
-const sortVoicesForLanguage = (voices, language) => {
-    const normalizedLang = language?.toLowerCase();
-    const languageRoot = normalizedLang?.split('-')[0];
-
-    const arabicFlavorBoost = (voice) => {
-        if (languageRoot !== 'ar') return 0;
-        const name = voice.name?.toLowerCase() || '';
-        return /arabic|saudi|saudi arabia|ksa|egypt|emirates|uae|gulf/i.test(name) ? 0.75 : 0;
-    };
-
-    const scoreVoice = (voice) => {
-        const lang = voice.lang?.toLowerCase();
-        const qualityBoost = VOICE_QUALITY_PATTERN.test(voice.name || '') ? 1 : 0;
-        const dialectBoost = arabicFlavorBoost(voice);
-        if (!lang) return 0;
-        if (lang === normalizedLang) return 3.5 + qualityBoost + dialectBoost;
-        if (lang.startsWith(`${languageRoot}-`)) return 2.5 + qualityBoost + dialectBoost;
-        if (lang.startsWith(languageRoot)) return 1.5 + qualityBoost + dialectBoost;
-        return qualityBoost + dialectBoost;
-    };
-
-    return voices
-        .map((voice) => ({ voice, score: scoreVoice(voice) }))
-        .sort((a, b) => b.score - a.score || a.voice.name.localeCompare(b.voice.name))
-        .map((entry) => entry.voice);
+const updateRecordingButton = (isRecording = false) => {
+    if (!communicationRecordButton) return;
+    communicationRecordButton.innerHTML = isRecording
+        ? '<i class="bi bi-stop-circle"></i> Stop recording'
+        : '<i class="bi bi-mic"></i> Start recording';
+    communicationRecordButton.classList.toggle('btn-danger', isRecording);
+    communicationRecordButton.classList.toggle('btn-outline-primary', !isRecording);
 };
 
-const populateVoiceOptions = (language) => {
-    if (!communicationVoiceSelect) return;
-    const voices = sortVoicesForLanguage(getAvailableVoices(), language);
-    const currentValue = communicationVoiceSelect.value;
-
-    communicationVoiceSelect.innerHTML = '';
-
-    const addOption = (voice, container = communicationVoiceSelect) => {
-        const option = document.createElement('option');
-        option.value = getVoiceId(voice);
-        option.textContent = `${voice.name} (${voice.lang})`;
-        container.appendChild(option);
-    };
-
-    const addGroup = (label, voiceList) => {
-        if (!voiceList.length) return;
-        const group = document.createElement('optgroup');
-        group.label = label;
-        voiceList.forEach((voice) => addOption(voice, group));
-        communicationVoiceSelect.appendChild(group);
-    };
-
-    const autoOption = document.createElement('option');
-    autoOption.value = '';
-    autoOption.textContent = 'Auto (best match)';
-    communicationVoiceSelect.appendChild(autoOption);
-
-    const { recommended, general } = separateVoicesByQuality(voices);
-    addGroup('AI-style natural voices', recommended);
-    addGroup('Other installed voices', general);
-
-    const voiceStillAvailable = currentValue && voices.some((voice) => getVoiceId(voice) === currentValue);
-    communicationVoiceSelect.value = voiceStillAvailable ? currentValue : '';
+const resetRecordingState = () => {
+    communicationAudioData = '';
+    recordingChunks = [];
+    updateRecordingButton(false);
+    communicationPlayRecordingButton?.classList.add('d-none');
+    setRecordingStatus('No recording yet. Please record yourself saying the phrase above.');
 };
 
-const getVoiceForLanguage = (language) => {
-    if (!window.speechSynthesis || !window.speechSynthesis.getVoices) return null;
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) return null;
+const applyRecordingFromItem = (item = null) => {
+    communicationAudioData = item?.audioData || '';
+    const hasAudio = Boolean(communicationAudioData);
+    communicationPlayRecordingButton?.classList.toggle('d-none', !hasAudio);
+    setRecordingStatus(
+        hasAudio
+            ? 'Recording ready. Tap play to preview or record again.'
+            : 'No recording yet. Please record yourself saying the phrase above.',
+        hasAudio ? 'success' : 'muted'
+    );
+    updateRecordingButton(false);
+};
 
-    const normalizedLang = language?.toLowerCase();
-    const languageRoot = normalizedLang?.split('-')[0];
-    const sortedVoices = sortVoicesForLanguage(voices, language);
-
-    const matchers = [
-        (voice) => voice.lang?.toLowerCase() === normalizedLang && VOICE_QUALITY_PATTERN.test(voice.name),
-        (voice) => voice.lang?.toLowerCase() === normalizedLang,
-        (voice) => voice.lang?.toLowerCase().startsWith(`${languageRoot}-`) && VOICE_QUALITY_PATTERN.test(voice.name),
-        (voice) => voice.lang?.toLowerCase().startsWith(`${languageRoot}-`),
-        (voice) => VOICE_QUALITY_PATTERN.test(voice.name),
-    ];
-
-    for (const matcher of matchers) {
-        const match = sortedVoices.find(matcher);
-        if (match) return match;
+const stopRecordingStream = () => {
+    if (recordingStream) {
+        recordingStream.getTracks().forEach((track) => track.stop());
+        recordingStream = null;
     }
-
-    return sortedVoices[0] || voices[0] || null;
 };
 
-const PREVIEW_SAMPLE_TEXT = 'This is how your communication button will sound.';
-const PREVIEW_SAMPLE_BY_LANGUAGE = {
-    'ar-SA': 'هذا مثال على صوت عربي طبيعي وواضح.',
-    'ar-AE': 'هكذا سيبدو الصوت باللهجة الإماراتية أو الخليجية.',
-    'ar-EG': 'هكذا سيُقرأ النص باللهجة المصرية.',
-    'en-US': PREVIEW_SAMPLE_TEXT,
-    'en-GB': 'Here is how the message will be spoken in English.',
-    'es-ES': 'Así sonará tu mensaje en español.',
-    'fr-FR': 'Voici comment votre message sera prononcé en français.',
-    'de-DE': 'So wird Ihre Nachricht auf Deutsch klingen.'
+const stopCommunicationAudio = () => {
+    if (activeAudioElement) {
+        activeAudioElement.pause();
+        activeAudioElement.currentTime = 0;
+        activeAudioElement = null;
+    }
 };
 
-const previewSelectedVoice = async () => {
-    if (!window.speechSynthesis || !window.speechSynthesis.getVoices) {
-        alert('Speech is not supported in this browser.');
+const playAudioData = (audioData) => {
+    if (!audioData) {
+        alert('Please record yourself saying this phrase first.');
+        return;
+    }
+    stopCommunicationAudio();
+    activeAudioElement = new Audio(audioData);
+    activeAudioElement.onended = () => {
+        activeAudioElement = null;
+    };
+    activeAudioElement.play().catch(() => {
+        alert('Unable to play your recording. Please try re-recording.');
+    });
+};
+
+const playFormRecording = () => playAudioData(communicationAudioData);
+
+const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+        alert('Recording is not supported in this browser.');
+        return;
+    }
+    if (typeof MediaRecorder === 'undefined') {
+        alert('Recording is not available in this browser.');
         return;
     }
 
-    const language = communicationLanguageSelect?.value || 'en-US';
-    const selectedVoiceId = communicationVoiceSelect?.value || '';
-    const selectedVoice = findVoiceById(selectedVoiceId) || getVoiceForLanguage(language);
-    const previewText = communicationPhraseInput?.value?.trim()
-        || communicationTitleInput?.value?.trim()
-        || PREVIEW_SAMPLE_BY_LANGUAGE[language]
-        || PREVIEW_SAMPLE_TEXT;
-
-    const utterance = new SpeechSynthesisUtterance(previewText);
-    utterance.lang = language;
-    if (selectedVoice) utterance.voice = selectedVoice;
-    const isArabic = language?.toLowerCase().startsWith('ar');
-    utterance.rate = isArabic ? 1 : 0.98;
-    utterance.pitch = isArabic ? 1 : 1;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    try {
+        communicationAudioData = '';
+        communicationPlayRecordingButton?.classList.add('d-none');
+        stopCommunicationAudio();
+        recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recordingChunks = [];
+        mediaRecorder = new MediaRecorder(recordingStream);
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) recordingChunks.push(event.data);
+        };
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(recordingChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                communicationAudioData = reader.result;
+                communicationPlayRecordingButton?.classList.toggle('d-none', !communicationAudioData);
+                setRecordingStatus(
+                    'Recording ready. Tap play to preview or record again.',
+                    communicationAudioData ? 'success' : 'muted'
+                );
+            };
+            reader.readAsDataURL(blob);
+            stopRecordingStream();
+            updateRecordingButton(false);
+        };
+        mediaRecorder.start();
+        updateRecordingButton(true);
+        setRecordingStatus('Recording... tap stop when you are done.', 'success');
+    } catch (error) {
+        setRecordingStatus('Microphone permission is needed to record your voice.', 'error');
+        stopRecordingStream();
+    }
 };
 
-const speakCommunicationItem = async (item) => {
-    if (!window.speechSynthesis || !window.speechSynthesis.getVoices) {
-        alert('Speech is not supported in this browser.');
+const stopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+    } else {
+        stopRecordingStream();
+        updateRecordingButton(false);
+    }
+};
+
+const toggleRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording();
+    } else {
+        startRecording();
+    }
+};
+
+const playCommunicationItemAudio = (item) => {
+    if (!item.audioData) {
+        alert('Please add your own recording for this card before playing it.');
         return;
     }
-
-    const utterance = new SpeechSynthesisUtterance(item.phrase || item.title);
-    utterance.lang = item.language || 'en-US';
-    const voicePreferenceId = communicationVoiceSelect?.value || item.voiceId;
-    const voicePreference = findVoiceById(voicePreferenceId);
-    const voice = voicePreference || getVoiceForLanguage(utterance.lang);
-    if (voice) utterance.voice = voice;
-    const isArabic = utterance.lang?.toLowerCase().startsWith('ar');
-    utterance.rate = isArabic ? 1 : 0.98;
-    utterance.pitch = isArabic ? 1 : 1;
-
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-};
-
-const stopCommunicationSpeech = () => {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
+    playAudioData(item.audioData);
 };
 
 const renderCommunicationItems = () => {
@@ -1256,6 +1251,9 @@ const renderCommunicationItems = () => {
         card.dataset.communicationId = item.id;
         card.style.background = `linear-gradient(145deg, ${hexToRgba(item.color, 0.18)}, var(--card-bg))`;
         card.setAttribute('aria-label', `${item.title} (${item.language})`);
+        const recordingMessage = item.audioData
+            ? '<span class="text-primary small fw-semibold">Tap card to play your recording</span>'
+            : '<span class="text-warning small fw-semibold">Recording needed</span>';
 
         card.innerHTML = `
             <div class="communication-image" style="border-color: ${hexToRgba(item.color, 0.4)};">
@@ -1269,8 +1267,8 @@ const renderCommunicationItems = () => {
                 <span class="language-badge">${item.language}</span>
                 <div class="communication-actions">
                     ${item.isCustom ? '<button class="btn btn-outline-danger btn-sm" data-action="delete-communication"><i class="bi bi-trash"></i></button>' : ''}
-                    ${item.isCustom ? '<button class="btn btn-outline-primary btn-sm" data-action="edit-communication"><i class="bi bi-pencil"></i></button>' : ''}
-                    <span class="text-primary small fw-semibold">Tap card to play</span>
+                    <button class="btn btn-outline-primary btn-sm" data-action="edit-communication"><i class="bi bi-pencil"></i></button>
+                    ${recordingMessage}
                 </div>
             </div>
         `;
@@ -1289,13 +1287,11 @@ const setCommunicationFormMode = (item = null) => {
     const isEditing = Boolean(item);
     editingCommunicationId = item?.id || null;
 
-    populateVoiceOptions(item?.language || communicationLanguageSelect?.value || 'en-US');
-
     if (isEditing) {
         communicationTitleInput.value = item.title;
         communicationPhraseInput.value = item.phrase;
         communicationLanguageSelect.value = item.language;
-        communicationVoiceSelect.value = item.voiceId || '';
+        applyRecordingFromItem(item);
         if (item.imageData) {
             communicationPreview.innerHTML = `<img src="${item.imageData}" alt="${item.title}">`;
             communicationPreview.dataset.imageData = item.imageData;
@@ -1305,6 +1301,7 @@ const setCommunicationFormMode = (item = null) => {
     } else {
         communicationForm.reset();
         resetCommunicationPreview();
+        resetRecordingState();
     }
 
     if (communicationSubmitButton) {
@@ -1321,9 +1318,13 @@ const handleCommunicationFormSubmit = (e) => {
     const title = communicationTitleInput.value.trim();
     const phrase = communicationPhraseInput.value.trim();
     const language = communicationLanguageSelect.value;
-    const voiceId = communicationVoiceSelect?.value || '';
+    const audioData = communicationAudioData;
 
     if (!title || !phrase) return;
+    if (!audioData) {
+        alert('Please record yourself saying this phrase before saving the button.');
+        return;
+    }
 
     const createItem = (imageData = '') => {
         if (editingCommunicationId) {
@@ -1334,7 +1335,7 @@ const handleCommunicationFormSubmit = (e) => {
                         title,
                         phrase,
                         language,
-                        voiceId,
+                        audioData,
                         imageData,
                         emoji: item.emoji || title.charAt(0) || '💬'
                     }
@@ -1346,7 +1347,7 @@ const handleCommunicationFormSubmit = (e) => {
                 title,
                 phrase,
                 language,
-                voiceId,
+                audioData,
                 imageData,
                 emoji: title.charAt(0) || '💬',
                 color: nextCommunicationColor(communicationItems.length),
@@ -1540,10 +1541,8 @@ resetSharedBalancesButton?.addEventListener('click', () => {
 
 communicationForm?.addEventListener('submit', handleCommunicationFormSubmit);
 communicationImageInput?.addEventListener('change', handleCommunicationImageChange);
-communicationLanguageSelect?.addEventListener('change', () => {
-    populateVoiceOptions(communicationLanguageSelect.value);
-});
-previewVoiceButton?.addEventListener('click', () => previewSelectedVoice());
+communicationRecordButton?.addEventListener('click', toggleRecording);
+communicationPlayRecordingButton?.addEventListener('click', playFormRecording);
 communicationGrid?.addEventListener('click', (e) => {
     const card = e.target.closest('[data-communication-id]');
     if (!card) return;
@@ -1562,19 +1561,14 @@ communicationGrid?.addEventListener('click', (e) => {
         return;
     }
 
-    speakCommunicationItem(item);
+    playCommunicationItemAudio(item);
 });
-communicationStopButton?.addEventListener('click', stopCommunicationSpeech);
+communicationStopButton?.addEventListener('click', () => {
+    stopCommunicationAudio();
+    stopRecording();
+});
 communicationLanguageFilter?.addEventListener('change', renderCommunicationItems);
 communicationCancelButton?.addEventListener('click', () => setCommunicationFormMode());
-if (window.speechSynthesis && 'onvoiceschanged' in window.speechSynthesis) {
-    window.speechSynthesis.addEventListener('voiceschanged', () => {
-        populateVoiceOptions(communicationLanguageSelect?.value || 'en-US');
-        renderCommunicationItems();
-    });
-}
-
-populateVoiceOptions(communicationLanguageSelect?.value || 'en-US');
 
 themeModeSelect?.addEventListener('change', () => {
     const mode = themeModeSelect.value;
@@ -1602,11 +1596,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSharedParticipants();
     updateSharedExpenseControls();
     renderSharedExpenseHistory();
+    normalizeCommunicationItems();
     renderCommunicationItems();
 
     transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
     updateBalance();
     displayTransactions();
-    resetCommunicationPreview();
-    initializeElevenLabsControls();
+    setCommunicationFormMode();
 });
