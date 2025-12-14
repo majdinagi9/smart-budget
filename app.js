@@ -46,6 +46,7 @@ const communicationForm = document.getElementById('communication-form');
 const communicationTitleInput = document.getElementById('communication-title');
 const communicationPhraseInput = document.getElementById('communication-phrase');
 const communicationLanguageSelect = document.getElementById('communication-language');
+const communicationVoiceSelect = document.getElementById('communication-voice');
 const communicationImageInput = document.getElementById('communication-image');
 const communicationPreview = document.getElementById('communication-preview');
 const communicationGrid = document.getElementById('communication-grid');
@@ -245,6 +246,7 @@ communicationItems = Array.isArray(communicationItems)
         title: item.title || 'New card',
         phrase: item.phrase || '',
         language: item.language || 'en-US',
+        voiceId: item.voiceId || '',
         emoji: item.emoji || '💬',
         color: item.color || '#0d6efd',
         imageData: item.imageData || '',
@@ -1045,6 +1047,58 @@ const nextCommunicationColor = (index) => {
     return palette[index % palette.length];
 };
 
+const getAvailableVoices = () => {
+    if (!window.speechSynthesis || !window.speechSynthesis.getVoices) return [];
+    return window.speechSynthesis.getVoices();
+};
+
+const getVoiceId = (voice) => (voice ? `${voice.name}|||${voice.lang}` : '');
+
+const findVoiceById = (voiceId) => {
+    if (!voiceId) return null;
+    return getAvailableVoices().find((voice) => getVoiceId(voice) === voiceId) || null;
+};
+
+const sortVoicesForLanguage = (voices, language) => {
+    const normalizedLang = language?.toLowerCase();
+    const languageRoot = normalizedLang?.split('-')[0];
+
+    const scoreVoice = (voice) => {
+        const lang = voice.lang?.toLowerCase();
+        if (!lang) return 0;
+        if (lang === normalizedLang) return 3;
+        if (lang.startsWith(`${languageRoot}-`)) return 2;
+        if (lang.startsWith(languageRoot)) return 1;
+        return 0;
+    };
+
+    return voices
+        .map((voice) => ({ voice, score: scoreVoice(voice) }))
+        .sort((a, b) => b.score - a.score || a.voice.name.localeCompare(b.voice.name))
+        .map((entry) => entry.voice);
+};
+
+const populateVoiceOptions = (language) => {
+    if (!communicationVoiceSelect) return;
+    const voices = sortVoicesForLanguage(getAvailableVoices(), language);
+    const currentValue = communicationVoiceSelect.value;
+
+    communicationVoiceSelect.innerHTML = '<option value="">Auto (best match)</option>';
+
+    voices.forEach((voice) => {
+        const option = document.createElement('option');
+        option.value = getVoiceId(voice);
+        option.textContent = `${voice.name} (${voice.lang})`;
+        communicationVoiceSelect.appendChild(option);
+    });
+
+    if (currentValue && voices.some((voice) => getVoiceId(voice) === currentValue)) {
+        communicationVoiceSelect.value = currentValue;
+    } else {
+        communicationVoiceSelect.value = '';
+    }
+};
+
 const getVoiceForLanguage = (language) => {
     if (!window.speechSynthesis || !window.speechSynthesis.getVoices) return null;
     const voices = window.speechSynthesis.getVoices();
@@ -1078,7 +1132,9 @@ const speakCommunicationItem = (item) => {
 
     const utterance = new SpeechSynthesisUtterance(item.phrase || item.title);
     utterance.lang = item.language || 'en-US';
-    const voice = getVoiceForLanguage(utterance.lang);
+    const voicePreferenceId = communicationVoiceSelect?.value || item.voiceId;
+    const voicePreference = findVoiceById(voicePreferenceId);
+    const voice = voicePreference || getVoiceForLanguage(utterance.lang);
     if (voice) utterance.voice = voice;
     utterance.rate = 0.98;
     utterance.pitch = 1;
@@ -1135,6 +1191,7 @@ const handleCommunicationFormSubmit = (e) => {
     const title = communicationTitleInput.value.trim();
     const phrase = communicationPhraseInput.value.trim();
     const language = communicationLanguageSelect.value;
+    const voiceId = communicationVoiceSelect?.value || '';
 
     if (!title || !phrase) return;
 
@@ -1144,6 +1201,7 @@ const handleCommunicationFormSubmit = (e) => {
             title,
             phrase,
             language,
+            voiceId,
             imageData,
             emoji: title.charAt(0) || '💬',
             color: nextCommunicationColor(communicationItems.length),
@@ -1337,6 +1395,9 @@ resetSharedBalancesButton?.addEventListener('click', () => {
 
 communicationForm?.addEventListener('submit', handleCommunicationFormSubmit);
 communicationImageInput?.addEventListener('change', handleCommunicationImageChange);
+communicationLanguageSelect?.addEventListener('change', () => {
+    populateVoiceOptions(communicationLanguageSelect.value);
+});
 communicationGrid?.addEventListener('click', (e) => {
     const card = e.target.closest('[data-communication-id]');
     if (!card) return;
@@ -1353,8 +1414,13 @@ communicationGrid?.addEventListener('click', (e) => {
 });
 communicationStopButton?.addEventListener('click', stopCommunicationSpeech);
 if (window.speechSynthesis && 'onvoiceschanged' in window.speechSynthesis) {
-    window.speechSynthesis.addEventListener('voiceschanged', renderCommunicationItems);
+    window.speechSynthesis.addEventListener('voiceschanged', () => {
+        populateVoiceOptions(communicationLanguageSelect?.value || 'en-US');
+        renderCommunicationItems();
+    });
 }
+
+populateVoiceOptions(communicationLanguageSelect?.value || 'en-US');
 
 themeModeSelect?.addEventListener('change', () => {
     const mode = themeModeSelect.value;
