@@ -47,6 +47,7 @@ const communicationTitleInput = document.getElementById('communication-title');
 const communicationPhraseInput = document.getElementById('communication-phrase');
 const communicationLanguageSelect = document.getElementById('communication-language');
 const communicationVoiceSelect = document.getElementById('communication-voice');
+const previewVoiceButton = document.getElementById('preview-voice');
 const communicationImageInput = document.getElementById('communication-image');
 const communicationPreview = document.getElementById('communication-preview');
 const communicationGrid = document.getElementById('communication-grid');
@@ -1052,6 +1053,8 @@ const getAvailableVoices = () => {
     return window.speechSynthesis.getVoices();
 };
 
+const VOICE_QUALITY_PATTERN = /google|microsoft|amazon|apple|samsung|neural|ai/i;
+
 const getVoiceId = (voice) => (voice ? `${voice.name}|||${voice.lang}` : '');
 
 const findVoiceById = (voiceId) => {
@@ -1059,17 +1062,24 @@ const findVoiceById = (voiceId) => {
     return getAvailableVoices().find((voice) => getVoiceId(voice) === voiceId) || null;
 };
 
+const separateVoicesByQuality = (voices) => voices.reduce((acc, voice) => {
+    const bucket = VOICE_QUALITY_PATTERN.test(voice.name || '') ? 'recommended' : 'general';
+    acc[bucket].push(voice);
+    return acc;
+}, { recommended: [], general: [] });
+
 const sortVoicesForLanguage = (voices, language) => {
     const normalizedLang = language?.toLowerCase();
     const languageRoot = normalizedLang?.split('-')[0];
 
     const scoreVoice = (voice) => {
         const lang = voice.lang?.toLowerCase();
+        const qualityBoost = VOICE_QUALITY_PATTERN.test(voice.name || '') ? 0.5 : 0;
         if (!lang) return 0;
-        if (lang === normalizedLang) return 3;
-        if (lang.startsWith(`${languageRoot}-`)) return 2;
-        if (lang.startsWith(languageRoot)) return 1;
-        return 0;
+        if (lang === normalizedLang) return 3.5 + qualityBoost;
+        if (lang.startsWith(`${languageRoot}-`)) return 2.5 + qualityBoost;
+        if (lang.startsWith(languageRoot)) return 1.5 + qualityBoost;
+        return qualityBoost;
     };
 
     return voices
@@ -1083,20 +1093,34 @@ const populateVoiceOptions = (language) => {
     const voices = sortVoicesForLanguage(getAvailableVoices(), language);
     const currentValue = communicationVoiceSelect.value;
 
-    communicationVoiceSelect.innerHTML = '<option value="">Auto (best match)</option>';
+    communicationVoiceSelect.innerHTML = '';
 
-    voices.forEach((voice) => {
+    const addOption = (voice, container = communicationVoiceSelect) => {
         const option = document.createElement('option');
         option.value = getVoiceId(voice);
         option.textContent = `${voice.name} (${voice.lang})`;
-        communicationVoiceSelect.appendChild(option);
-    });
+        container.appendChild(option);
+    };
 
-    if (currentValue && voices.some((voice) => getVoiceId(voice) === currentValue)) {
-        communicationVoiceSelect.value = currentValue;
-    } else {
-        communicationVoiceSelect.value = '';
-    }
+    const addGroup = (label, voiceList) => {
+        if (!voiceList.length) return;
+        const group = document.createElement('optgroup');
+        group.label = label;
+        voiceList.forEach((voice) => addOption(voice, group));
+        communicationVoiceSelect.appendChild(group);
+    };
+
+    const autoOption = document.createElement('option');
+    autoOption.value = '';
+    autoOption.textContent = 'Auto (best match)';
+    communicationVoiceSelect.appendChild(autoOption);
+
+    const { recommended, general } = separateVoicesByQuality(voices);
+    addGroup('AI-style natural voices', recommended);
+    addGroup('Other installed voices', general);
+
+    const voiceStillAvailable = currentValue && voices.some((voice) => getVoiceId(voice) === currentValue);
+    communicationVoiceSelect.value = voiceStillAvailable ? currentValue : '';
 };
 
 const getVoiceForLanguage = (language) => {
@@ -1106,14 +1130,13 @@ const getVoiceForLanguage = (language) => {
 
     const normalizedLang = language?.toLowerCase();
     const languageRoot = normalizedLang?.split('-')[0];
-    const qualityNamePattern = /google|microsoft|amazon|apple|samsung/i;
 
     const matchers = [
-        (voice) => voice.lang?.toLowerCase() === normalizedLang && qualityNamePattern.test(voice.name),
+        (voice) => voice.lang?.toLowerCase() === normalizedLang && VOICE_QUALITY_PATTERN.test(voice.name),
         (voice) => voice.lang?.toLowerCase() === normalizedLang,
-        (voice) => voice.lang?.toLowerCase().startsWith(`${languageRoot}-`) && qualityNamePattern.test(voice.name),
+        (voice) => voice.lang?.toLowerCase().startsWith(`${languageRoot}-`) && VOICE_QUALITY_PATTERN.test(voice.name),
         (voice) => voice.lang?.toLowerCase().startsWith(`${languageRoot}-`),
-        (voice) => qualityNamePattern.test(voice.name),
+        (voice) => VOICE_QUALITY_PATTERN.test(voice.name),
     ];
 
     for (const matcher of matchers) {
@@ -1122,6 +1145,30 @@ const getVoiceForLanguage = (language) => {
     }
 
     return voices[0] || null;
+};
+
+const PREVIEW_SAMPLE_TEXT = 'This is how your communication button will sound.';
+
+const previewSelectedVoice = () => {
+    if (!window.speechSynthesis) {
+        alert('Speech is not supported in this browser.');
+        return;
+    }
+
+    const language = communicationLanguageSelect?.value || 'en-US';
+    const selectedVoiceId = communicationVoiceSelect?.value || '';
+    const selectedVoice = findVoiceById(selectedVoiceId) || getVoiceForLanguage(language);
+    const previewText = communicationPhraseInput?.value?.trim()
+        || communicationTitleInput?.value?.trim()
+        || PREVIEW_SAMPLE_TEXT;
+
+    const utterance = new SpeechSynthesisUtterance(previewText);
+    utterance.lang = language;
+    if (selectedVoice) utterance.voice = selectedVoice;
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
 };
 
 const speakCommunicationItem = (item) => {
@@ -1398,6 +1445,7 @@ communicationImageInput?.addEventListener('change', handleCommunicationImageChan
 communicationLanguageSelect?.addEventListener('change', () => {
     populateVoiceOptions(communicationLanguageSelect.value);
 });
+previewVoiceButton?.addEventListener('click', previewSelectedVoice);
 communicationGrid?.addEventListener('click', (e) => {
     const card = e.target.closest('[data-communication-id]');
     if (!card) return;
