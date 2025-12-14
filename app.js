@@ -42,17 +42,27 @@ const sharedExpenseParticipants = document.getElementById('shared-expense-partic
 const sharedExpenseHistory = document.getElementById('shared-expense-history');
 const sharedExpenseSummary = document.getElementById('shared-expense-summary');
 const resetSharedBalancesButton = document.getElementById('reset-shared-balances');
+const communicationForm = document.getElementById('communication-form');
+const communicationTitleInput = document.getElementById('communication-title');
+const communicationPhraseInput = document.getElementById('communication-phrase');
+const communicationLanguageSelect = document.getElementById('communication-language');
+const communicationImageInput = document.getElementById('communication-image');
+const communicationPreview = document.getElementById('communication-preview');
+const communicationGrid = document.getElementById('communication-grid');
+const communicationStopButton = document.getElementById('communication-stop');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
 const TODO_STORAGE_KEY = 'organizerTodos';
 const SHARED_PARTICIPANTS_KEY = 'sharedParticipants';
 const SHARED_EXPENSES_KEY = 'sharedExpenses';
+const COMMUNICATION_ITEMS_KEY = 'communicationItems';
 
 let transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
 let editTransactionId = null;
 let todos = JSON.parse(localStorage.getItem(TODO_STORAGE_KEY) || '[]');
 let sharedParticipants = JSON.parse(localStorage.getItem(SHARED_PARTICIPANTS_KEY) || '[]');
 let sharedExpenses = JSON.parse(localStorage.getItem(SHARED_EXPENSES_KEY) || '[]');
+let communicationItems = JSON.parse(localStorage.getItem(COMMUNICATION_ITEMS_KEY) || '[]');
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -108,6 +118,62 @@ const TODO_PRIORITY_META = {
 };
 const TODO_PRIORITY_ORDER = { high: 3, normal: 2, low: 1 };
 const MAX_ORDER_VALUE = 100;
+const DEFAULT_COMMUNICATION_ITEMS = [
+    {
+        id: 'comm-drink',
+        title: 'I want a drink',
+        phrase: 'I would like a drink, please.',
+        emoji: '🧃',
+        language: 'en-US',
+        color: '#0d6efd',
+        isCustom: false
+    },
+    {
+        id: 'comm-snack',
+        title: 'I am hungry',
+        phrase: 'I am hungry. Can I have something to eat?',
+        emoji: '🍎',
+        language: 'en-US',
+        color: '#fd7e14',
+        isCustom: false
+    },
+    {
+        id: 'comm-bathroom',
+        title: 'Bathroom',
+        phrase: 'I need to use the bathroom.',
+        emoji: '🚻',
+        language: 'en-US',
+        color: '#20c997',
+        isCustom: false
+    },
+    {
+        id: 'comm-help',
+        title: 'Help me',
+        phrase: 'Please help me.',
+        emoji: '🆘',
+        language: 'en-US',
+        color: '#dc3545',
+        isCustom: false
+    },
+    {
+        id: 'comm-break',
+        title: 'I need a break',
+        phrase: 'I need a break.',
+        emoji: '🧸',
+        language: 'en-US',
+        color: '#6f42c1',
+        isCustom: false
+    },
+    {
+        id: 'comm-spanish-greeting',
+        title: 'Hola',
+        phrase: 'Hola, ¿puedo tener esto?',
+        emoji: '😊',
+        language: 'es-ES',
+        color: '#17a2b8',
+        isCustom: false
+    }
+];
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -173,6 +239,22 @@ sharedExpenses = Array.isArray(sharedExpenses)
         date: expense.date || new Date().toISOString()
     }))
     : [];
+communicationItems = Array.isArray(communicationItems)
+    ? communicationItems.map((item, index) => ({
+        id: item.id || `comm-${generateId() + index}`,
+        title: item.title || 'New card',
+        phrase: item.phrase || '',
+        language: item.language || 'en-US',
+        emoji: item.emoji || '💬',
+        color: item.color || '#0d6efd',
+        imageData: item.imageData || '',
+        isCustom: item.isCustom ?? true
+    }))
+    : [];
+if (!communicationItems.length) {
+    communicationItems = DEFAULT_COMMUNICATION_ITEMS.map(item => ({ ...item }));
+    localStorage.setItem(COMMUNICATION_ITEMS_KEY, JSON.stringify(communicationItems));
+}
 if (!sharedParticipants.length) {
     const baseId = Date.now();
     sharedParticipants = [
@@ -953,6 +1035,143 @@ function showAlert(message, type = 'warning') {
     }, 3000);
 }
 
+// Communication helper functions
+const saveCommunicationItems = () => {
+    localStorage.setItem(COMMUNICATION_ITEMS_KEY, JSON.stringify(communicationItems));
+};
+
+const nextCommunicationColor = (index) => {
+    const palette = ['#0d6efd', '#20c997', '#fd7e14', '#e83e8c', '#6f42c1'];
+    return palette[index % palette.length];
+};
+
+const getVoiceForLanguage = (language) => {
+    if (!window.speechSynthesis || !window.speechSynthesis.getVoices) return null;
+    const voices = window.speechSynthesis.getVoices();
+    return (
+        voices.find(voice => voice.lang === language) ||
+        voices.find(voice => voice.lang?.startsWith(language.split('-')[0])) ||
+        voices[0] ||
+        null
+    );
+};
+
+const speakCommunicationItem = (item) => {
+    if (!window.speechSynthesis) {
+        alert('Speech is not supported in this browser.');
+        return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(item.phrase || item.title);
+    utterance.lang = item.language || 'en-US';
+    const voice = getVoiceForLanguage(utterance.lang);
+    if (voice) utterance.voice = voice;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+};
+
+const stopCommunicationSpeech = () => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+};
+
+const renderCommunicationItems = () => {
+    if (!communicationGrid) return;
+    communicationGrid.innerHTML = '';
+
+    communicationItems.forEach((item) => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'communication-card text-start';
+        card.dataset.communicationId = item.id;
+        card.style.background = `linear-gradient(145deg, ${hexToRgba(item.color, 0.18)}, var(--card-bg))`;
+
+        card.innerHTML = `
+            <div class="communication-image" style="border-color: ${hexToRgba(item.color, 0.4)};">
+                ${item.imageData
+                    ? `<img src="${item.imageData}" alt="${item.title}">`
+                    : `<span class="communication-emoji" aria-hidden="true">${item.emoji || '🗣️'}</span>`}
+            </div>
+            <div class="fw-semibold">${item.title}</div>
+            <div class="text-muted small">${item.phrase}</div>
+            <div class="communication-meta">
+                <span class="language-badge">${item.language}</span>
+                <div class="communication-actions">
+                    ${item.isCustom ? '<button class="btn btn-outline-danger btn-sm" data-action="delete-communication"><i class="bi bi-trash"></i></button>' : ''}
+                    <button class="btn btn-sm btn-primary" data-action="speak-communication"><i class="bi bi-megaphone"></i></button>
+                </div>
+            </div>
+        `;
+
+        communicationGrid.appendChild(card);
+    });
+};
+
+const resetCommunicationPreview = () => {
+    if (!communicationPreview) return;
+    communicationPreview.textContent = 'No image selected';
+    communicationPreview.dataset.imageData = '';
+};
+
+const handleCommunicationFormSubmit = (e) => {
+    e.preventDefault();
+    const title = communicationTitleInput.value.trim();
+    const phrase = communicationPhraseInput.value.trim();
+    const language = communicationLanguageSelect.value;
+
+    if (!title || !phrase) return;
+
+    const createItem = (imageData = '') => {
+        const newItem = {
+            id: `comm-${generateId()}`,
+            title,
+            phrase,
+            language,
+            imageData,
+            emoji: title.charAt(0) || '💬',
+            color: nextCommunicationColor(communicationItems.length),
+            isCustom: true
+        };
+        communicationItems.push(newItem);
+        saveCommunicationItems();
+        renderCommunicationItems();
+        communicationForm.reset();
+        resetCommunicationPreview();
+        communicationTitleInput.focus();
+    };
+
+    const file = communicationImageInput.files?.[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = () => createItem(reader.result);
+        reader.readAsDataURL(file);
+    } else {
+        createItem(communicationPreview?.dataset?.imageData || '');
+    }
+};
+
+const handleCommunicationImageChange = () => {
+    if (!communicationImageInput || !communicationPreview) return;
+    const file = communicationImageInput.files?.[0];
+    if (!file) {
+        resetCommunicationPreview();
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        communicationPreview.innerHTML = `<img src="${reader.result}" alt="Selected">`;
+        communicationPreview.dataset.imageData = reader.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+const deleteCommunicationItem = (id) => {
+    communicationItems = communicationItems.filter(item => item.id !== id || !item.isCustom);
+    saveCommunicationItems();
+    renderCommunicationItems();
+};
+
 // Event Listeners
 addTransactionButton.addEventListener('click', addTransaction);
 saveTransactionButton.addEventListener('click', saveEdit);
@@ -1099,6 +1318,27 @@ resetSharedBalancesButton?.addEventListener('click', () => {
     }
 });
 
+communicationForm?.addEventListener('submit', handleCommunicationFormSubmit);
+communicationImageInput?.addEventListener('change', handleCommunicationImageChange);
+communicationGrid?.addEventListener('click', (e) => {
+    const card = e.target.closest('[data-communication-id]');
+    if (!card) return;
+    const id = card.dataset.communicationId;
+    const item = communicationItems.find(entry => entry.id === id);
+    if (!item) return;
+
+    if (e.target.closest('[data-action="delete-communication"]')) {
+        deleteCommunicationItem(id);
+        return;
+    }
+
+    speakCommunicationItem(item);
+});
+communicationStopButton?.addEventListener('click', stopCommunicationSpeech);
+if (window.speechSynthesis && 'onvoiceschanged' in window.speechSynthesis) {
+    window.speechSynthesis.addEventListener('voiceschanged', renderCommunicationItems);
+}
+
 themeModeSelect?.addEventListener('change', () => {
     const mode = themeModeSelect.value;
     localStorage.setItem(THEME_STORAGE_KEY, mode);
@@ -1125,8 +1365,10 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSharedParticipants();
     updateSharedExpenseControls();
     renderSharedExpenseHistory();
-    
+    renderCommunicationItems();
+
     transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
     updateBalance();
     displayTransactions();
+    resetCommunicationPreview();
 });
