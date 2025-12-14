@@ -174,6 +174,26 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         language: 'es-ES',
         color: '#17a2b8',
         isCustom: false
+    },
+    {
+        id: 'comm-ar-hello',
+        title: 'مرحبا',
+        phrase: 'مرحباً، كيف حالك اليوم؟',
+        emoji: '👋',
+        language: 'ar-SA',
+        color: '#0d6efd',
+        isCustom: false,
+        voiceId: ''
+    },
+    {
+        id: 'comm-ar-thanks',
+        title: 'شكراً',
+        phrase: 'شكراً جزيلاً على مساعدتك.',
+        emoji: '🙏',
+        language: 'ar-SA',
+        color: '#20c997',
+        isCustom: false,
+        voiceId: ''
     }
 ];
 
@@ -1053,7 +1073,7 @@ const getAvailableVoices = () => {
     return window.speechSynthesis.getVoices();
 };
 
-const VOICE_QUALITY_PATTERN = /google|microsoft|amazon|apple|samsung|neural|ai|natural|realistic|human|premium/i;
+const VOICE_QUALITY_PATTERN = /google|microsoft|amazon|apple|samsung|neural|ai|natural|realistic|human|premium|studio|arabic/i;
 
 const getVoiceId = (voice) => (voice ? `${voice.name}|||${voice.lang}` : '');
 
@@ -1130,6 +1150,7 @@ const getVoiceForLanguage = (language) => {
 
     const normalizedLang = language?.toLowerCase();
     const languageRoot = normalizedLang?.split('-')[0];
+    const sortedVoices = sortVoicesForLanguage(voices, language);
 
     const matchers = [
         (voice) => voice.lang?.toLowerCase() === normalizedLang && VOICE_QUALITY_PATTERN.test(voice.name),
@@ -1140,14 +1161,22 @@ const getVoiceForLanguage = (language) => {
     ];
 
     for (const matcher of matchers) {
-        const match = voices.find(matcher);
+        const match = sortedVoices.find(matcher);
         if (match) return match;
     }
 
-    return voices[0] || null;
+    return sortedVoices[0] || voices[0] || null;
 };
 
 const PREVIEW_SAMPLE_TEXT = 'This is how your communication button will sound.';
+const PREVIEW_SAMPLE_BY_LANGUAGE = {
+    'ar-SA': 'هذا مثال على صوت عربي طبيعي وواضح.',
+    'en-US': PREVIEW_SAMPLE_TEXT,
+    'en-GB': 'Here is how the message will be spoken in English.',
+    'es-ES': 'Así sonará tu mensaje en español.',
+    'fr-FR': 'Voici comment votre message sera prononcé en français.',
+    'de-DE': 'So wird Ihre Nachricht auf Deutsch klingen.'
+};
 
 const previewSelectedVoice = () => {
     if (!window.speechSynthesis) {
@@ -1160,13 +1189,15 @@ const previewSelectedVoice = () => {
     const selectedVoice = findVoiceById(selectedVoiceId) || getVoiceForLanguage(language);
     const previewText = communicationPhraseInput?.value?.trim()
         || communicationTitleInput?.value?.trim()
+        || PREVIEW_SAMPLE_BY_LANGUAGE[language]
         || PREVIEW_SAMPLE_TEXT;
 
     const utterance = new SpeechSynthesisUtterance(previewText);
     utterance.lang = language;
     if (selectedVoice) utterance.voice = selectedVoice;
-    utterance.rate = 1;
-    utterance.pitch = 1;
+    const isArabic = language?.toLowerCase().startsWith('ar');
+    utterance.rate = isArabic ? 1 : 0.98;
+    utterance.pitch = isArabic ? 1 : 1;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
 };
@@ -1183,8 +1214,9 @@ const speakCommunicationItem = (item) => {
     const voicePreference = findVoiceById(voicePreferenceId);
     const voice = voicePreference || getVoiceForLanguage(utterance.lang);
     if (voice) utterance.voice = voice;
-    utterance.rate = 0.98;
-    utterance.pitch = 1;
+    const isArabic = utterance.lang?.toLowerCase().startsWith('ar');
+    utterance.rate = isArabic ? 1 : 0.98;
+    utterance.pitch = isArabic ? 1 : 1;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
 };
