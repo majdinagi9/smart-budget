@@ -1048,12 +1048,26 @@ const nextCommunicationColor = (index) => {
 const getVoiceForLanguage = (language) => {
     if (!window.speechSynthesis || !window.speechSynthesis.getVoices) return null;
     const voices = window.speechSynthesis.getVoices();
-    return (
-        voices.find(voice => voice.lang === language) ||
-        voices.find(voice => voice.lang?.startsWith(language.split('-')[0])) ||
-        voices[0] ||
-        null
-    );
+    if (!voices.length) return null;
+
+    const normalizedLang = language?.toLowerCase();
+    const languageRoot = normalizedLang?.split('-')[0];
+    const qualityNamePattern = /google|microsoft|amazon|apple|samsung/i;
+
+    const matchers = [
+        (voice) => voice.lang?.toLowerCase() === normalizedLang && qualityNamePattern.test(voice.name),
+        (voice) => voice.lang?.toLowerCase() === normalizedLang,
+        (voice) => voice.lang?.toLowerCase().startsWith(`${languageRoot}-`) && qualityNamePattern.test(voice.name),
+        (voice) => voice.lang?.toLowerCase().startsWith(`${languageRoot}-`),
+        (voice) => qualityNamePattern.test(voice.name),
+    ];
+
+    for (const matcher of matchers) {
+        const match = voices.find(matcher);
+        if (match) return match;
+    }
+
+    return voices[0] || null;
 };
 
 const speakCommunicationItem = (item) => {
@@ -1066,6 +1080,8 @@ const speakCommunicationItem = (item) => {
     utterance.lang = item.language || 'en-US';
     const voice = getVoiceForLanguage(utterance.lang);
     if (voice) utterance.voice = voice;
+    utterance.rate = 0.98;
+    utterance.pitch = 1;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
 };
@@ -1085,6 +1101,7 @@ const renderCommunicationItems = () => {
         card.className = 'communication-card text-start';
         card.dataset.communicationId = item.id;
         card.style.background = `linear-gradient(145deg, ${hexToRgba(item.color, 0.18)}, var(--card-bg))`;
+        card.setAttribute('aria-label', `${item.title} (${item.language})`);
 
         card.innerHTML = `
             <div class="communication-image" style="border-color: ${hexToRgba(item.color, 0.4)};">
@@ -1098,7 +1115,7 @@ const renderCommunicationItems = () => {
                 <span class="language-badge">${item.language}</span>
                 <div class="communication-actions">
                     ${item.isCustom ? '<button class="btn btn-outline-danger btn-sm" data-action="delete-communication"><i class="bi bi-trash"></i></button>' : ''}
-                    <button class="btn btn-sm btn-primary" data-action="speak-communication"><i class="bi bi-megaphone"></i></button>
+                    <span class="text-primary small fw-semibold">Tap card to play</span>
                 </div>
             </div>
         `;
