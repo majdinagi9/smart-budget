@@ -52,6 +52,9 @@ const communicationImageInput = document.getElementById('communication-image');
 const communicationPreview = document.getElementById('communication-preview');
 const communicationGrid = document.getElementById('communication-grid');
 const communicationStopButton = document.getElementById('communication-stop');
+const communicationLanguageFilter = document.getElementById('communication-filter-language');
+const communicationSubmitButton = document.getElementById('communication-submit');
+const communicationCancelButton = document.getElementById('communication-cancel');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
 const TODO_STORAGE_KEY = 'organizerTodos';
@@ -65,6 +68,7 @@ let todos = JSON.parse(localStorage.getItem(TODO_STORAGE_KEY) || '[]');
 let sharedParticipants = JSON.parse(localStorage.getItem(SHARED_PARTICIPANTS_KEY) || '[]');
 let sharedExpenses = JSON.parse(localStorage.getItem(SHARED_EXPENSES_KEY) || '[]');
 let communicationItems = JSON.parse(localStorage.getItem(COMMUNICATION_ITEMS_KEY) || '[]');
+let editingCommunicationId = null;
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -1230,7 +1234,12 @@ const renderCommunicationItems = () => {
     if (!communicationGrid) return;
     communicationGrid.innerHTML = '';
 
-    communicationItems.forEach((item) => {
+    const filteredItems = communicationItems.filter((item) => {
+        if (!communicationLanguageFilter || !communicationLanguageFilter.value) return true;
+        return item.language === communicationLanguageFilter.value;
+    });
+
+    filteredItems.forEach((item) => {
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'communication-card text-start';
@@ -1250,6 +1259,7 @@ const renderCommunicationItems = () => {
                 <span class="language-badge">${item.language}</span>
                 <div class="communication-actions">
                     ${item.isCustom ? '<button class="btn btn-outline-danger btn-sm" data-action="delete-communication"><i class="bi bi-trash"></i></button>' : ''}
+                    ${item.isCustom ? '<button class="btn btn-outline-primary btn-sm" data-action="edit-communication"><i class="bi bi-pencil"></i></button>' : ''}
                     <span class="text-primary small fw-semibold">Tap card to play</span>
                 </div>
             </div>
@@ -1265,6 +1275,37 @@ const resetCommunicationPreview = () => {
     communicationPreview.dataset.imageData = '';
 };
 
+const setCommunicationFormMode = (item = null) => {
+    const isEditing = Boolean(item);
+    editingCommunicationId = item?.id || null;
+
+    populateVoiceOptions(item?.language || communicationLanguageSelect?.value || 'en-US');
+
+    if (isEditing) {
+        communicationTitleInput.value = item.title;
+        communicationPhraseInput.value = item.phrase;
+        communicationLanguageSelect.value = item.language;
+        communicationVoiceSelect.value = item.voiceId || '';
+        if (item.imageData) {
+            communicationPreview.innerHTML = `<img src="${item.imageData}" alt="${item.title}">`;
+            communicationPreview.dataset.imageData = item.imageData;
+        } else {
+            resetCommunicationPreview();
+        }
+    } else {
+        communicationForm.reset();
+        resetCommunicationPreview();
+    }
+
+    if (communicationSubmitButton) {
+        communicationSubmitButton.innerHTML = isEditing
+            ? '<i class="bi bi-save"></i> Update button'
+            : '<i class="bi bi-plus-circle"></i> Save button';
+    }
+
+    communicationCancelButton?.classList.toggle('d-none', !isEditing);
+};
+
 const handleCommunicationFormSubmit = (e) => {
     e.preventDefault();
     const title = communicationTitleInput.value.trim();
@@ -1275,22 +1316,37 @@ const handleCommunicationFormSubmit = (e) => {
     if (!title || !phrase) return;
 
     const createItem = (imageData = '') => {
-        const newItem = {
-            id: `comm-${generateId()}`,
-            title,
-            phrase,
-            language,
-            voiceId,
-            imageData,
-            emoji: title.charAt(0) || '💬',
-            color: nextCommunicationColor(communicationItems.length),
-            isCustom: true
-        };
-        communicationItems.push(newItem);
+        if (editingCommunicationId) {
+            communicationItems = communicationItems.map((item) => (
+                item.id === editingCommunicationId
+                    ? {
+                        ...item,
+                        title,
+                        phrase,
+                        language,
+                        voiceId,
+                        imageData,
+                        emoji: item.emoji || title.charAt(0) || '💬'
+                    }
+                    : item
+            ));
+        } else {
+            const newItem = {
+                id: `comm-${generateId()}`,
+                title,
+                phrase,
+                language,
+                voiceId,
+                imageData,
+                emoji: title.charAt(0) || '💬',
+                color: nextCommunicationColor(communicationItems.length),
+                isCustom: true
+            };
+            communicationItems.push(newItem);
+        }
         saveCommunicationItems();
         renderCommunicationItems();
-        communicationForm.reset();
-        resetCommunicationPreview();
+        setCommunicationFormMode();
         communicationTitleInput.focus();
     };
 
@@ -1490,9 +1546,17 @@ communicationGrid?.addEventListener('click', (e) => {
         return;
     }
 
+    if (e.target.closest('[data-action="edit-communication"]')) {
+        setCommunicationFormMode(item);
+        communicationTitleInput.focus();
+        return;
+    }
+
     speakCommunicationItem(item);
 });
 communicationStopButton?.addEventListener('click', stopCommunicationSpeech);
+communicationLanguageFilter?.addEventListener('change', renderCommunicationItems);
+communicationCancelButton?.addEventListener('click', () => setCommunicationFormMode());
 if (window.speechSynthesis && 'onvoiceschanged' in window.speechSynthesis) {
     window.speechSynthesis.addEventListener('voiceschanged', () => {
         populateVoiceOptions(communicationLanguageSelect?.value || 'en-US');
