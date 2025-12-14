@@ -1053,7 +1053,7 @@ const getAvailableVoices = () => {
     return window.speechSynthesis.getVoices();
 };
 
-const VOICE_QUALITY_PATTERN = /google|microsoft|amazon|apple|samsung|neural|ai/i;
+const VOICE_QUALITY_PATTERN = /google|microsoft|amazon|apple|samsung|neural|ai|natural|realistic|human|premium/i;
 
 const getVoiceId = (voice) => (voice ? `${voice.name}|||${voice.lang}` : '');
 
@@ -1074,7 +1074,7 @@ const sortVoicesForLanguage = (voices, language) => {
 
     const scoreVoice = (voice) => {
         const lang = voice.lang?.toLowerCase();
-        const qualityBoost = VOICE_QUALITY_PATTERN.test(voice.name || '') ? 0.5 : 0;
+        const qualityBoost = VOICE_QUALITY_PATTERN.test(voice.name || '') ? 1 : 0;
         if (!lang) return 0;
         if (lang === normalizedLang) return 3.5 + qualityBoost;
         if (lang.startsWith(`${languageRoot}-`)) return 2.5 + qualityBoost;
