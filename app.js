@@ -1187,7 +1187,8 @@ const startRecording = async () => {
             if (event.data.size > 0) recordingChunks.push(event.data);
         };
         mediaRecorder.onstop = () => {
-            const blob = new Blob(recordingChunks, { type: 'audio/webm' });
+            const mimeType = recordingChunks[0]?.type || mediaRecorder.mimeType || 'audio/webm';
+            const blob = new Blob(recordingChunks, { type: mimeType });
             const reader = new FileReader();
             reader.onloadend = () => {
                 communicationAudioData = reader.result;
