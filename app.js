@@ -55,22 +55,12 @@ const communicationStopButton = document.getElementById('communication-stop');
 const communicationLanguageFilter = document.getElementById('communication-filter-language');
 const communicationSubmitButton = document.getElementById('communication-submit');
 const communicationCancelButton = document.getElementById('communication-cancel');
-const elevenApiKeyInput = document.getElementById('eleven-api-key');
-const elevenVoiceSelect = document.getElementById('eleven-voice');
-const elevenRefreshVoicesButton = document.getElementById('eleven-refresh-voices');
-const elevenPreviewVoiceButton = document.getElementById('eleven-preview-voice');
-const elevenStatus = document.getElementById('eleven-status');
-const elevenEnableToggle = document.getElementById('eleven-enable');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
 const TODO_STORAGE_KEY = 'organizerTodos';
 const SHARED_PARTICIPANTS_KEY = 'sharedParticipants';
 const SHARED_EXPENSES_KEY = 'sharedExpenses';
 const COMMUNICATION_ITEMS_KEY = 'communicationItems';
-const ELEVEN_API_KEY_STORAGE_KEY = 'elevenApiKey';
-const ELEVEN_VOICE_STORAGE_KEY = 'elevenVoiceId';
-const ELEVEN_ENABLED_STORAGE_KEY = 'elevenEnabled';
-const ELEVEN_MODEL_ID = 'eleven_multilingual_v2';
 
 let transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
 let editTransactionId = null;
@@ -79,9 +69,6 @@ let sharedParticipants = JSON.parse(localStorage.getItem(SHARED_PARTICIPANTS_KEY
 let sharedExpenses = JSON.parse(localStorage.getItem(SHARED_EXPENSES_KEY) || '[]');
 let communicationItems = JSON.parse(localStorage.getItem(COMMUNICATION_ITEMS_KEY) || '[]');
 let editingCommunicationId = null;
-let elevenVoices = [];
-let elevenAudioInstance = null;
-let elevenAudioUrl = '';
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -1080,192 +1067,6 @@ const saveCommunicationItems = () => {
     localStorage.setItem(COMMUNICATION_ITEMS_KEY, JSON.stringify(communicationItems));
 };
 
-const setElevenStatus = (message, tone = 'muted') => {
-    if (!elevenStatus) return;
-    elevenStatus.textContent = message;
-    elevenStatus.classList.remove('text-danger', 'text-success', 'text-muted', 'text-warning');
-    elevenStatus.classList.add(`text-${tone}`);
-};
-
-const stopElevenAudio = () => {
-    if (elevenAudioInstance) {
-        elevenAudioInstance.pause();
-    }
-    if (elevenAudioUrl) {
-        URL.revokeObjectURL(elevenAudioUrl);
-    }
-    elevenAudioInstance = null;
-    elevenAudioUrl = '';
-};
-
-const persistElevenKey = () => {
-    if (!elevenApiKeyInput) return;
-    const key = elevenApiKeyInput.value.trim();
-    if (key) {
-        localStorage.setItem(ELEVEN_API_KEY_STORAGE_KEY, key);
-    } else {
-        localStorage.removeItem(ELEVEN_API_KEY_STORAGE_KEY);
-    }
-};
-
-const persistElevenVoice = () => {
-    if (!elevenVoiceSelect) return;
-    const voiceId = elevenVoiceSelect.value;
-    if (voiceId) {
-        localStorage.setItem(ELEVEN_VOICE_STORAGE_KEY, voiceId);
-    } else {
-        localStorage.removeItem(ELEVEN_VOICE_STORAGE_KEY);
-    }
-};
-
-const persistElevenEnabled = () => {
-    if (!elevenEnableToggle) return;
-    localStorage.setItem(ELEVEN_ENABLED_STORAGE_KEY, elevenEnableToggle.checked ? 'true' : 'false');
-};
-
-const populateElevenVoiceSelect = (voices = []) => {
-    if (!elevenVoiceSelect) return;
-    const savedVoice = localStorage.getItem(ELEVEN_VOICE_STORAGE_KEY) || '';
-    elevenVoiceSelect.innerHTML = '<option value="">Pick an ElevenLabs voice</option>';
-
-    voices.forEach((voice) => {
-        const option = document.createElement('option');
-        option.value = voice.voice_id;
-        const accent = voice.labels?.accent || voice.labels?.language || voice.category;
-        option.textContent = accent ? `${voice.name} (${accent})` : voice.name;
-        elevenVoiceSelect.appendChild(option);
-    });
-
-    if (savedVoice && voices.some((voice) => voice.voice_id === savedVoice)) {
-        elevenVoiceSelect.value = savedVoice;
-    } else if (!savedVoice && voices.length) {
-        elevenVoiceSelect.value = voices[0].voice_id;
-        persistElevenVoice();
-    }
-};
-
-const matchesElevenVoiceLanguage = (voice, language) => {
-    if (!language) return true;
-    const target = language.toLowerCase();
-    const targetRoot = target.split('-')[0];
-
-    const labelLanguage = voice.labels?.language?.toLowerCase() || '';
-    const accent = voice.labels?.accent?.toLowerCase() || '';
-    const locale = voice.language?.toLowerCase() || voice.category?.toLowerCase() || '';
-
-    const haystack = [labelLanguage, accent, locale, voice.name?.toLowerCase() || ''];
-
-    return haystack.some((value) => value.includes(target) || value.includes(targetRoot));
-};
-
-const filterElevenVoicesForLanguage = (voices = [], language) => {
-    if (!language) return voices;
-    const filtered = voices.filter((voice) => matchesElevenVoiceLanguage(voice, language));
-    return filtered.length ? filtered : voices;
-};
-
-const fetchElevenVoices = async () => {
-    if (!elevenApiKeyInput) return [];
-    const apiKey = elevenApiKeyInput.value.trim();
-    if (!apiKey) {
-        setElevenStatus('Add your ElevenLabs API key to load available voices.', 'warning');
-        return [];
-    }
-
-    setElevenStatus('Loading ElevenLabs voices...', 'muted');
-
-    try {
-        const response = await fetch('https://api.elevenlabs.io/v1/voices', {
-            headers: { 'xi-api-key': apiKey }
-        });
-
-        if (!response.ok) {
-            throw new Error('Unable to load voices. Double-check your API key.');
-        }
-
-        const data = await response.json();
-        elevenVoices = data.voices || [];
-        const preferredLanguage = communicationLanguageSelect?.value;
-        const filteredVoices = filterElevenVoicesForLanguage(elevenVoices, preferredLanguage);
-        populateElevenVoiceSelect(filteredVoices);
-        const filteredNote = preferredLanguage && filteredVoices.length !== elevenVoices.length
-            ? ` (${filteredVoices.length} filtered for ${preferredLanguage})`
-            : '';
-        setElevenStatus(`Loaded ${elevenVoices.length} ElevenLabs voices${filteredNote}.`, 'success');
-        return elevenVoices;
-    } catch (error) {
-        console.error('ElevenLabs voices error', error);
-        setElevenStatus(error.message || 'Failed to load voices.', 'danger');
-        return [];
-    }
-};
-
-const shouldUseElevenLabs = () => {
-    const enabled = elevenEnableToggle?.checked;
-    const apiKey = elevenApiKeyInput?.value?.trim();
-    const voiceId = elevenVoiceSelect?.value;
-    return Boolean(enabled && apiKey && voiceId);
-};
-
-const playElevenAudio = (arrayBuffer) => {
-    stopElevenAudio();
-    const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
-    elevenAudioUrl = URL.createObjectURL(blob);
-    elevenAudioInstance = new Audio(elevenAudioUrl);
-    elevenAudioInstance.play().catch(() => setElevenStatus('Unable to start ElevenLabs audio playback.', 'danger'));
-    elevenAudioInstance.onended = () => {
-        if (elevenAudioUrl) URL.revokeObjectURL(elevenAudioUrl);
-        elevenAudioUrl = '';
-        elevenAudioInstance = null;
-    };
-};
-
-const speakWithElevenLabs = async (text, language = 'en-US') => {
-    if (!shouldUseElevenLabs()) return false;
-
-    const apiKey = elevenApiKeyInput.value.trim();
-    const voiceId = elevenVoiceSelect.value;
-    const languageCode = language || 'en-US';
-
-    try {
-        setElevenStatus('Generating speech with ElevenLabs...', 'muted');
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'xi-api-key': apiKey
-            },
-            body: JSON.stringify({
-                text,
-                model_id: ELEVEN_MODEL_ID,
-                language_code: languageCode,
-                voice_settings: {
-                    stability: 0.5,
-                    similarity_boost: 0.8
-                }
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error('ElevenLabs request failed. Check your key and voice.');
-        }
-
-        const audioBuffer = await response.arrayBuffer();
-        playElevenAudio(audioBuffer);
-        setElevenStatus(`Playing with ElevenLabs (${language}).`, 'success');
-        return true;
-    } catch (error) {
-        console.error('ElevenLabs playback error', error);
-        setElevenStatus(error.message || 'Unable to use ElevenLabs right now.', 'danger');
-        return false;
-    }
-};
-
-const ensureElevenVoicesLoaded = async () => {
-    if (elevenVoices.length) return elevenVoices;
-    return fetchElevenVoices();
-};
-
 const nextCommunicationColor = (index) => {
     const palette = ['#0d6efd', '#20c997', '#fd7e14', '#e83e8c', '#6f42c1'];
     return palette[index % palette.length];
@@ -1295,14 +1096,21 @@ const sortVoicesForLanguage = (voices, language) => {
     const normalizedLang = language?.toLowerCase();
     const languageRoot = normalizedLang?.split('-')[0];
 
+    const arabicFlavorBoost = (voice) => {
+        if (languageRoot !== 'ar') return 0;
+        const name = voice.name?.toLowerCase() || '';
+        return /arabic|saudi|saudi arabia|ksa|egypt|emirates|uae|gulf/i.test(name) ? 0.75 : 0;
+    };
+
     const scoreVoice = (voice) => {
         const lang = voice.lang?.toLowerCase();
         const qualityBoost = VOICE_QUALITY_PATTERN.test(voice.name || '') ? 1 : 0;
+        const dialectBoost = arabicFlavorBoost(voice);
         if (!lang) return 0;
-        if (lang === normalizedLang) return 3.5 + qualityBoost;
-        if (lang.startsWith(`${languageRoot}-`)) return 2.5 + qualityBoost;
-        if (lang.startsWith(languageRoot)) return 1.5 + qualityBoost;
-        return qualityBoost;
+        if (lang === normalizedLang) return 3.5 + qualityBoost + dialectBoost;
+        if (lang.startsWith(`${languageRoot}-`)) return 2.5 + qualityBoost + dialectBoost;
+        if (lang.startsWith(languageRoot)) return 1.5 + qualityBoost + dialectBoost;
+        return qualityBoost + dialectBoost;
     };
 
     return voices
@@ -1374,6 +1182,8 @@ const getVoiceForLanguage = (language) => {
 const PREVIEW_SAMPLE_TEXT = 'This is how your communication button will sound.';
 const PREVIEW_SAMPLE_BY_LANGUAGE = {
     'ar-SA': 'هذا مثال على صوت عربي طبيعي وواضح.',
+    'ar-AE': 'هكذا سيبدو الصوت باللهجة الإماراتية أو الخليجية.',
+    'ar-EG': 'هكذا سيُقرأ النص باللهجة المصرية.',
     'en-US': PREVIEW_SAMPLE_TEXT,
     'en-GB': 'Here is how the message will be spoken in English.',
     'es-ES': 'Así sonará tu mensaje en español.',
@@ -1382,7 +1192,7 @@ const PREVIEW_SAMPLE_BY_LANGUAGE = {
 };
 
 const previewSelectedVoice = async () => {
-    if (!window.speechSynthesis && !shouldUseElevenLabs()) {
+    if (!window.speechSynthesis || !window.speechSynthesis.getVoices) {
         alert('Speech is not supported in this browser.');
         return;
     }
@@ -1395,9 +1205,6 @@ const previewSelectedVoice = async () => {
         || PREVIEW_SAMPLE_BY_LANGUAGE[language]
         || PREVIEW_SAMPLE_TEXT;
 
-    const elevenHandled = await speakWithElevenLabs(previewText, language);
-    if (elevenHandled) return;
-
     const utterance = new SpeechSynthesisUtterance(previewText);
     utterance.lang = language;
     if (selectedVoice) utterance.voice = selectedVoice;
@@ -1409,7 +1216,7 @@ const previewSelectedVoice = async () => {
 };
 
 const speakCommunicationItem = async (item) => {
-    if (!window.speechSynthesis && !shouldUseElevenLabs()) {
+    if (!window.speechSynthesis || !window.speechSynthesis.getVoices) {
         alert('Speech is not supported in this browser.');
         return;
     }
@@ -1424,15 +1231,11 @@ const speakCommunicationItem = async (item) => {
     utterance.rate = isArabic ? 1 : 0.98;
     utterance.pitch = isArabic ? 1 : 1;
 
-    const elevenHandled = await speakWithElevenLabs(utterance.text, utterance.lang);
-    if (elevenHandled) return;
-
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
 };
 
 const stopCommunicationSpeech = () => {
-    stopElevenAudio();
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
 };
@@ -1589,29 +1392,6 @@ const deleteCommunicationItem = (id) => {
     renderCommunicationItems();
 };
 
-const initializeElevenLabsControls = async () => {
-    if (elevenApiKeyInput) {
-        const savedKey = localStorage.getItem(ELEVEN_API_KEY_STORAGE_KEY) || '';
-        if (savedKey) elevenApiKeyInput.value = savedKey;
-    }
-
-    if (elevenEnableToggle) {
-        const savedEnabled = localStorage.getItem(ELEVEN_ENABLED_STORAGE_KEY);
-        elevenEnableToggle.checked = savedEnabled === 'true';
-    }
-
-    if (elevenVoiceSelect) {
-        const savedVoice = localStorage.getItem(ELEVEN_VOICE_STORAGE_KEY) || '';
-        if (savedVoice) elevenVoiceSelect.value = savedVoice;
-    }
-
-    if (elevenApiKeyInput?.value) {
-        await fetchElevenVoices();
-    } else {
-        setElevenStatus('Enter your key and load voices to use ElevenLabs playback.', 'muted');
-    }
-};
-
 // Event Listeners
 addTransactionButton.addEventListener('click', addTransaction);
 saveTransactionButton.addEventListener('click', saveEdit);
@@ -1762,33 +1542,8 @@ communicationForm?.addEventListener('submit', handleCommunicationFormSubmit);
 communicationImageInput?.addEventListener('change', handleCommunicationImageChange);
 communicationLanguageSelect?.addEventListener('change', () => {
     populateVoiceOptions(communicationLanguageSelect.value);
-    if (elevenVoices.length) {
-        const filtered = filterElevenVoicesForLanguage(elevenVoices, communicationLanguageSelect.value);
-        populateElevenVoiceSelect(filtered);
-    }
 });
 previewVoiceButton?.addEventListener('click', () => previewSelectedVoice());
-elevenRefreshVoicesButton?.addEventListener('click', () => {
-    persistElevenKey();
-    fetchElevenVoices();
-});
-elevenApiKeyInput?.addEventListener('blur', () => {
-    persistElevenKey();
-});
-elevenVoiceSelect?.addEventListener('change', () => {
-    persistElevenVoice();
-});
-elevenEnableToggle?.addEventListener('change', () => {
-    persistElevenEnabled();
-    if (elevenEnableToggle.checked && elevenApiKeyInput?.value && !elevenVoices.length) {
-        fetchElevenVoices();
-    }
-});
-elevenPreviewVoiceButton?.addEventListener('click', async () => {
-    persistElevenKey();
-    await ensureElevenVoicesLoaded();
-    previewSelectedVoice();
-});
 communicationGrid?.addEventListener('click', (e) => {
     const card = e.target.closest('[data-communication-id]');
     if (!card) return;
