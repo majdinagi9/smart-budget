@@ -49,6 +49,7 @@ const communicationRecordButton = document.getElementById('communication-record'
 const communicationPlayRecordingButton = document.getElementById('communication-play-recording');
 const communicationRecordingStatus = document.getElementById('communication-recording-status');
 const communicationImageInput = document.getElementById('communication-image');
+const communicationEmojiInput = document.getElementById('communication-emoji');
 const communicationPreview = document.getElementById('communication-preview');
 const communicationGrid = document.getElementById('communication-grid');
 const communicationStopButton = document.getElementById('communication-stop');
@@ -225,6 +226,11 @@ const stripLeadingEmoji = (text = '', emoji = '') => {
     return normalizedEmoji && trimmedText.startsWith(normalizedEmoji)
         ? trimmedText.slice(normalizedEmoji.length).trimStart()
         : trimmedText;
+};
+
+const normalizeEmojiValue = (value = '', fallback = '🗣️') => {
+    const normalized = Array.from((value || '').trim()).slice(0, 2).join('');
+    return normalized || fallback;
 };
 
 const calculateNet = (list = []) => list.reduce((sum, transaction) => {
@@ -1096,7 +1102,8 @@ const normalizeCommunicationItems = () => {
         return {
             ...rest,
             audioData: item.audioData || '',
-            color: rest.color || nextCommunicationColor(index)
+            color: rest.color || nextCommunicationColor(index),
+            emoji: normalizeEmojiValue(rest.emoji || rest.title?.charAt(0) || '')
         };
     });
     saveCommunicationItems();
@@ -1247,8 +1254,9 @@ const renderCommunicationItems = () => {
     communicationGrid.innerHTML = '';
 
     communicationItems.forEach((item) => {
-        const cleanTitle = stripLeadingEmoji(item.title || '', item.emoji);
-        const cleanPhrase = stripLeadingEmoji(item.phrase || '', item.emoji);
+        const emoji = normalizeEmojiValue(item.emoji);
+        const cleanTitle = stripLeadingEmoji(item.title || '', emoji);
+        const cleanPhrase = stripLeadingEmoji(item.phrase || '', emoji);
         const displayTitle = cleanTitle || item.title || 'Communication card';
         const displayPhrase = cleanPhrase || item.phrase || '';
         const card = document.createElement('button');
@@ -1260,7 +1268,7 @@ const renderCommunicationItems = () => {
         const recordingMessage = item.audioData
             ? '<span class="text-primary small fw-semibold">Tap card to play your recording</span>'
             : '<span class="text-warning small fw-semibold">Recording needed</span>';
-        const fallbackEmoji = escapeHtml(item.emoji || '🗣️');
+        const fallbackEmoji = escapeHtml(emoji);
         const fallbackText = escapeHtml(displayTitle || displayPhrase || 'Ready to speak');
         const safeTitle = escapeHtml(displayTitle);
         const safePhrase = escapeHtml(displayPhrase || 'Tap to play your recording');
@@ -1302,6 +1310,9 @@ const setCommunicationFormMode = (item = null) => {
     if (isEditing) {
         communicationTitleInput.value = item.title;
         communicationPhraseInput.value = item.phrase;
+        if (communicationEmojiInput) {
+            communicationEmojiInput.value = item.emoji || '';
+        }
         applyRecordingFromItem(item);
         if (item.imageData) {
             communicationPreview.innerHTML = `<img src="${item.imageData}" alt="${item.title}">`;
@@ -1311,6 +1322,9 @@ const setCommunicationFormMode = (item = null) => {
         }
     } else {
         communicationForm.reset();
+        if (communicationEmojiInput) {
+            communicationEmojiInput.value = '';
+        }
         resetCommunicationPreview();
         resetRecordingState();
     }
@@ -1329,6 +1343,13 @@ const handleCommunicationFormSubmit = (e) => {
     const title = communicationTitleInput.value.trim();
     const phrase = communicationPhraseInput.value.trim();
     const audioData = communicationAudioData;
+    const currentItem = editingCommunicationId
+        ? communicationItems.find((item) => item.id === editingCommunicationId)
+        : null;
+    const emoji = normalizeEmojiValue(
+        (communicationEmojiInput?.value || '').trim() || currentItem?.emoji || title.charAt(0),
+        '🗣️'
+    );
 
     if (!title || !phrase) return;
     if (!audioData) {
@@ -1346,7 +1367,7 @@ const handleCommunicationFormSubmit = (e) => {
                         phrase,
                         audioData,
                         imageData,
-                        emoji: item.emoji || title.charAt(0) || '💬'
+                        emoji
                     }
                     : item
             ));
@@ -1357,7 +1378,7 @@ const handleCommunicationFormSubmit = (e) => {
                 phrase,
                 audioData,
                 imageData,
-                emoji: title.charAt(0) || '💬',
+                emoji,
                 color: nextCommunicationColor(communicationItems.length),
                 isCustom: true
             };

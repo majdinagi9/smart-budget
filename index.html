@@ -111,6 +111,7 @@
         .communication-emoji {
             font-size: clamp(3.75rem, 6vw, 5rem);
             line-height: 1;
+            font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", "Segoe UI Symbol", "Noto Emoji", sans-serif;
             filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.08));
         }
 
@@ -121,6 +122,10 @@
             text-align: center;
             padding: 0.25rem;
             word-break: break-word;
+        }
+
+        .communication-emoji-input {
+            max-width: 130px;
         }
 
         .communication-meta {
@@ -805,6 +810,11 @@
                                     <label class="form-label" for="communication-title">Button title</label>
                                     <input type="text" id="communication-title" class="form-control" placeholder="E.g. Snack" required>
                                     <small class="text-muted">Short text that shows on the card.</small>
+                                </div>
+                                <div>
+                                    <label class="form-label" for="communication-emoji">Emoji or symbol (optional)</label>
+                                    <input type="text" id="communication-emoji" class="form-control communication-emoji-input" placeholder="😀" inputmode="text" autocomplete="off" maxlength="4">
+                                    <small class="text-muted">Pick the emoji that appears on the card if no picture is used.</small>
                                 </div>
                                 <div>
                                     <label class="form-label" for="communication-phrase">Spoken message</label>
