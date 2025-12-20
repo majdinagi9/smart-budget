@@ -45,7 +45,6 @@ const resetSharedBalancesButton = document.getElementById('reset-shared-balances
 const communicationForm = document.getElementById('communication-form');
 const communicationTitleInput = document.getElementById('communication-title');
 const communicationPhraseInput = document.getElementById('communication-phrase');
-const communicationLanguageSelect = document.getElementById('communication-language');
 const communicationRecordButton = document.getElementById('communication-record');
 const communicationPlayRecordingButton = document.getElementById('communication-play-recording');
 const communicationRecordingStatus = document.getElementById('communication-recording-status');
@@ -53,7 +52,6 @@ const communicationImageInput = document.getElementById('communication-image');
 const communicationPreview = document.getElementById('communication-preview');
 const communicationGrid = document.getElementById('communication-grid');
 const communicationStopButton = document.getElementById('communication-stop');
-const communicationLanguageFilter = document.getElementById('communication-filter-language');
 const communicationSubmitButton = document.getElementById('communication-submit');
 const communicationCancelButton = document.getElementById('communication-cancel');
 const THEME_STORAGE_KEY = 'themeMode';
@@ -136,7 +134,6 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'I want a drink',
         phrase: 'I would like a drink, please.',
         emoji: '🧃',
-        language: 'en-US',
         color: '#0d6efd',
         isCustom: false,
         audioData: ''
@@ -146,7 +143,6 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'I am hungry',
         phrase: 'I am hungry. Can I have something to eat?',
         emoji: '🍎',
-        language: 'en-US',
         color: '#fd7e14',
         isCustom: false,
         audioData: ''
@@ -156,7 +152,6 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'Bathroom',
         phrase: 'I need to use the bathroom.',
         emoji: '🚻',
-        language: 'en-US',
         color: '#20c997',
         isCustom: false,
         audioData: ''
@@ -166,7 +161,6 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'Help me',
         phrase: 'Please help me.',
         emoji: '🆘',
-        language: 'en-US',
         color: '#dc3545',
         isCustom: false,
         audioData: ''
@@ -176,7 +170,6 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'I need a break',
         phrase: 'I need a break.',
         emoji: '🧸',
-        language: 'en-US',
         color: '#6f42c1',
         isCustom: false,
         audioData: ''
@@ -186,7 +179,6 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'Hola',
         phrase: 'Hola, ¿puedo tener esto?',
         emoji: '😊',
-        language: 'es-ES',
         color: '#17a2b8',
         isCustom: false,
         audioData: ''
@@ -196,7 +188,6 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'مرحبا',
         phrase: 'مرحباً، كيف حالك اليوم؟',
         emoji: '👋',
-        language: 'ar-SA',
         color: '#0d6efd',
         isCustom: false,
         audioData: ''
@@ -206,7 +197,6 @@ const DEFAULT_COMMUNICATION_ITEMS = [
         title: 'شكراً',
         phrase: 'شكراً جزيلاً على مساعدتك.',
         emoji: '🙏',
-        language: 'ar-SA',
         color: '#20c997',
         isCustom: false,
         audioData: ''
@@ -282,7 +272,6 @@ communicationItems = Array.isArray(communicationItems)
         id: item.id || `comm-${generateId() + index}`,
         title: item.title || 'New card',
         phrase: item.phrase || '',
-        language: item.language || 'en-US',
         audioData: item.audioData || '',
         emoji: item.emoji || '💬',
         color: item.color || '#0d6efd',
@@ -1240,18 +1229,13 @@ const renderCommunicationItems = () => {
     if (!communicationGrid) return;
     communicationGrid.innerHTML = '';
 
-    const filteredItems = communicationItems.filter((item) => {
-        if (!communicationLanguageFilter || !communicationLanguageFilter.value) return true;
-        return item.language === communicationLanguageFilter.value;
-    });
-
-    filteredItems.forEach((item) => {
+    communicationItems.forEach((item) => {
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'communication-card text-start';
         card.dataset.communicationId = item.id;
         card.style.background = `linear-gradient(145deg, ${hexToRgba(item.color, 0.18)}, var(--card-bg))`;
-        card.setAttribute('aria-label', `${item.title} (${item.language})`);
+        card.setAttribute('aria-label', `${item.title}: ${item.phrase}`);
         const recordingMessage = item.audioData
             ? '<span class="text-primary small fw-semibold">Tap card to play your recording</span>'
             : '<span class="text-warning small fw-semibold">Recording needed</span>';
@@ -1265,11 +1249,10 @@ const renderCommunicationItems = () => {
             <div class="fw-semibold">${item.title}</div>
             <div class="text-muted small">${item.phrase}</div>
             <div class="communication-meta">
-                <span class="language-badge">${item.language}</span>
+                <div>${recordingMessage}</div>
                 <div class="communication-actions">
                     ${item.isCustom ? '<button class="btn btn-outline-danger btn-sm" data-action="delete-communication"><i class="bi bi-trash"></i></button>' : ''}
                     <button class="btn btn-outline-primary btn-sm" data-action="edit-communication"><i class="bi bi-pencil"></i></button>
-                    ${recordingMessage}
                 </div>
             </div>
         `;
@@ -1291,7 +1274,6 @@ const setCommunicationFormMode = (item = null) => {
     if (isEditing) {
         communicationTitleInput.value = item.title;
         communicationPhraseInput.value = item.phrase;
-        communicationLanguageSelect.value = item.language;
         applyRecordingFromItem(item);
         if (item.imageData) {
             communicationPreview.innerHTML = `<img src="${item.imageData}" alt="${item.title}">`;
@@ -1318,7 +1300,6 @@ const handleCommunicationFormSubmit = (e) => {
     e.preventDefault();
     const title = communicationTitleInput.value.trim();
     const phrase = communicationPhraseInput.value.trim();
-    const language = communicationLanguageSelect.value;
     const audioData = communicationAudioData;
 
     if (!title || !phrase) return;
@@ -1335,7 +1316,6 @@ const handleCommunicationFormSubmit = (e) => {
                         ...item,
                         title,
                         phrase,
-                        language,
                         audioData,
                         imageData,
                         emoji: item.emoji || title.charAt(0) || '💬'
@@ -1347,7 +1327,6 @@ const handleCommunicationFormSubmit = (e) => {
                 id: `comm-${generateId()}`,
                 title,
                 phrase,
-                language,
                 audioData,
                 imageData,
                 emoji: title.charAt(0) || '💬',
@@ -1568,7 +1547,6 @@ communicationStopButton?.addEventListener('click', () => {
     stopCommunicationAudio();
     stopRecording();
 });
-communicationLanguageFilter?.addEventListener('change', renderCommunicationItems);
 communicationCancelButton?.addEventListener('click', () => setCommunicationFormMode());
 
 themeModeSelect?.addEventListener('change', () => {
