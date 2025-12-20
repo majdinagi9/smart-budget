@@ -222,6 +222,13 @@ const calculateNet = (list = []) => list.reduce((sum, transaction) => {
     return transaction.type === 'income' ? sum + amount : sum - amount;
 }, 0);
 
+const escapeHtml = (value = '') => value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
 const getFilteredTransactions = () => {
     if (!activeCategoryFilter) return transactions;
     return transactions.filter(t => t.category === activeCategoryFilter);
@@ -1239,12 +1246,13 @@ const renderCommunicationItems = () => {
         const recordingMessage = item.audioData
             ? '<span class="text-primary small fw-semibold">Tap card to play your recording</span>'
             : '<span class="text-warning small fw-semibold">Recording needed</span>';
+        const fallbackText = escapeHtml(item.title || item.emoji || '🗣️');
 
         card.innerHTML = `
             <div class="communication-image" style="border-color: ${hexToRgba(item.color, 0.4)};">
                 ${item.imageData
                     ? `<img src="${item.imageData}" alt="${item.title}">`
-                    : `<span class="communication-emoji" aria-hidden="true">${item.emoji || '🗣️'}</span>`}
+                    : `<span class="communication-text-fallback" aria-hidden="true">${fallbackText}</span>`}
             </div>
             <div class="fw-semibold">${item.title}</div>
             <div class="text-muted small">${item.phrase}</div>
