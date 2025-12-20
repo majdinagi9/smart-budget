@@ -217,6 +217,16 @@ const formatCurrency = (value, { includePlus = false } = {}) => {
     return base;
 };
 
+const stripLeadingEmoji = (text = '', emoji = '') => {
+    if (!text) return '';
+    const trimmedText = text.trimStart();
+    if (!emoji) return trimmedText;
+    const normalizedEmoji = emoji.trim();
+    return normalizedEmoji && trimmedText.startsWith(normalizedEmoji)
+        ? trimmedText.slice(normalizedEmoji.length).trimStart()
+        : trimmedText;
+};
+
 const calculateNet = (list = []) => list.reduce((sum, transaction) => {
     const amount = Math.abs(transaction.amount);
     return transaction.type === 'income' ? sum + amount : sum - amount;
@@ -1237,17 +1247,23 @@ const renderCommunicationItems = () => {
     communicationGrid.innerHTML = '';
 
     communicationItems.forEach((item) => {
+        const cleanTitle = stripLeadingEmoji(item.title || '', item.emoji);
+        const cleanPhrase = stripLeadingEmoji(item.phrase || '', item.emoji);
+        const displayTitle = cleanTitle || item.title || 'Communication card';
+        const displayPhrase = cleanPhrase || item.phrase || '';
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'communication-card text-start';
         card.dataset.communicationId = item.id;
         card.style.background = `linear-gradient(145deg, ${hexToRgba(item.color, 0.18)}, var(--card-bg))`;
-        card.setAttribute('aria-label', `${item.title}: ${item.phrase}`);
+        card.setAttribute('aria-label', `${displayTitle}: ${displayPhrase}`);
         const recordingMessage = item.audioData
             ? '<span class="text-primary small fw-semibold">Tap card to play your recording</span>'
             : '<span class="text-warning small fw-semibold">Recording needed</span>';
         const fallbackEmoji = escapeHtml(item.emoji || '🗣️');
-        const fallbackText = escapeHtml(item.title || item.emoji || '🗣️');
+        const fallbackText = escapeHtml(displayTitle || displayPhrase || 'Ready to speak');
+        const safeTitle = escapeHtml(displayTitle);
+        const safePhrase = escapeHtml(displayPhrase || 'Tap to play your recording');
 
         card.innerHTML = `
             <div class="communication-image" style="border-color: ${hexToRgba(item.color, 0.4)};">
@@ -1258,12 +1274,12 @@ const renderCommunicationItems = () => {
                         <span class="communication-text-fallback">${fallbackText}</span>
                     </div>`}
             </div>
-            <div class="fw-semibold">${item.title}</div>
-            <div class="text-muted small">${item.phrase}</div>
+            <div class="fw-semibold">${safeTitle}</div>
+            <div class="text-muted small">${safePhrase}</div>
             <div class="communication-meta">
                 <div>${recordingMessage}</div>
                 <div class="communication-actions">
-                    ${item.isCustom ? '<button class="btn btn-outline-danger btn-sm" data-action="delete-communication"><i class="bi bi-trash"></i></button>' : ''}
+                    <button class="btn btn-outline-danger btn-sm" data-action="delete-communication"><i class="bi bi-trash"></i></button>
                     <button class="btn btn-outline-primary btn-sm" data-action="edit-communication"><i class="bi bi-pencil"></i></button>
                 </div>
             </div>
@@ -1380,7 +1396,11 @@ const handleCommunicationImageChange = () => {
 };
 
 const deleteCommunicationItem = (id) => {
-    communicationItems = communicationItems.filter(item => item.id !== id || !item.isCustom);
+    const item = communicationItems.find(entry => entry.id === id);
+    if (!item) return;
+    if (!confirm(`Delete "${item.title || 'this card'}"?`)) return;
+    stopCommunicationAudio();
+    communicationItems = communicationItems.filter(entry => entry.id !== id);
     saveCommunicationItems();
     renderCommunicationItems();
 };
