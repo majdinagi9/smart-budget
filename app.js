@@ -1246,13 +1246,17 @@ const renderCommunicationItems = () => {
         const recordingMessage = item.audioData
             ? '<span class="text-primary small fw-semibold">Tap card to play your recording</span>'
             : '<span class="text-warning small fw-semibold">Recording needed</span>';
+        const fallbackEmoji = escapeHtml(item.emoji || '🗣️');
         const fallbackText = escapeHtml(item.title || item.emoji || '🗣️');
 
         card.innerHTML = `
             <div class="communication-image" style="border-color: ${hexToRgba(item.color, 0.4)};">
                 ${item.imageData
                     ? `<img src="${item.imageData}" alt="${item.title}">`
-                    : `<span class="communication-text-fallback" aria-hidden="true">${fallbackText}</span>`}
+                    : `<div class="communication-placeholder" aria-hidden="true">
+                        <span class="communication-emoji">${fallbackEmoji}</span>
+                        <span class="communication-text-fallback">${fallbackText}</span>
+                    </div>`}
             </div>
             <div class="fw-semibold">${item.title}</div>
             <div class="text-muted small">${item.phrase}</div>
