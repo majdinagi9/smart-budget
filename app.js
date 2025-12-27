@@ -295,6 +295,8 @@ communicationItems = Array.isArray(communicationItems)
     ? communicationItems.map((item, index) => ({
         id: item.id || `comm-${generateId() + index}`,
         title: item.title || 'New card',
+        phrase: item.phrase || '',
+        audioData: item.audioData || '',
         emoji: item.emoji || '💬',
         color: item.color || '#0d6efd',
         imageData: item.imageData || '',
