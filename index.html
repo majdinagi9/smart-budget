@@ -882,7 +882,7 @@
                                     <div class="d-flex align-items-start justify-content-between gap-3">
                                         <div>
                                             <h5 class="mb-1">Create a button</h5>
-                                            <small class="text-muted">Add a quick card with a title, phrase, and optional photo.</small>
+                                            <small class="text-muted">Add a quick card with a title, recording, and optional photo.</small>
                                         </div>
                                         <button class="btn btn-sm btn-outline-secondary communication-form-toggle" id="communication-form-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#communication-form-body" aria-expanded="true" aria-controls="communication-form-body">
                                             <i class="bi bi-chevron-up"></i>
@@ -904,22 +904,25 @@
                                         <small class="text-muted">Pick the emoji that appears on the card if no picture is used.</small>
                                     </div>
                                     <div>
-                                        <label class="form-label" for="communication-phrase">Spoken message</label>
-                                        <textarea id="communication-phrase" class="form-control" rows="2" placeholder="What should be spoken aloud?" required></textarea>
-                                        <small class="text-muted">This plays when the card is tapped.</small>
-                                    </div>
-                                    <div>
-                                        <label class="form-label">Record your voice</label>
-                                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                                            <button type="button" class="btn btn-outline-primary btn-sm" id="communication-record">
-                                                <i class="bi bi-mic"></i> Start recording
+                                        <div class="d-flex align-items-center justify-content-between gap-2">
+                                            <label class="form-label mb-0">Record your voice</label>
+                                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#communication-recording-body" aria-expanded="false" aria-controls="communication-recording-body">
+                                                <i class="bi bi-chevron-down"></i>
+                                                <span class="visually-hidden">Toggle recording section</span>
                                             </button>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="communication-play-recording">
-                                                <i class="bi bi-play-circle"></i> Play recording
-                                            </button>
-                                            <small class="text-muted" id="communication-recording-status">No recording yet. Please record yourself saying the phrase above.</small>
                                         </div>
-                                        <small class="text-muted d-block mt-1">Your recording will play when the card is tapped.</small>
+                                        <div id="communication-recording-body" class="collapse mt-2">
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" id="communication-record">
+                                                    <i class="bi bi-mic"></i> Start recording
+                                                </button>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="communication-play-recording">
+                                                    <i class="bi bi-play-circle"></i> Play recording
+                                                </button>
+                                                <small class="text-muted" id="communication-recording-status">No recording yet. Please record yourself saying the request above.</small>
+                                            </div>
+                                            <small class="text-muted d-block mt-1">Your recording will play when the card is tapped.</small>
+                                        </div>
                                     </div>
                                     <div>
                                         <label class="form-label" for="communication-image">Picture (optional)</label>
