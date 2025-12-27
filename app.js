@@ -10,6 +10,8 @@ const balanceScope = document.getElementById('balance-scope');
 const historyList = document.getElementById('history-list');
 const historySection = document.getElementById('history-section');
 const toggleHistoryButton = document.getElementById('toggle-history');
+const inputSection = document.getElementById('input-section');
+const toggleInputButton = document.getElementById('toggle-input');
 const exportDataButton = document.getElementById('export-data');
 const clearDataButton = document.getElementById('clear-data');
 const mobileAddButton = document.getElementById('mobile-add-btn');
@@ -44,10 +46,15 @@ const sharedExpenseSummary = document.getElementById('shared-expense-summary');
 const resetSharedBalancesButton = document.getElementById('reset-shared-balances');
 const communicationForm = document.getElementById('communication-form');
 const communicationTitleInput = document.getElementById('communication-title');
+const communicationPhraseInput = document.getElementById('communication-phrase');
 const communicationImageInput = document.getElementById('communication-image');
 const communicationEmojiInput = document.getElementById('communication-emoji');
 const communicationPreview = document.getElementById('communication-preview');
 const communicationGrid = document.getElementById('communication-grid');
+const communicationRecordButton = document.getElementById('communication-record');
+const communicationPlayRecordingButton = document.getElementById('communication-play-recording');
+const communicationStopButton = document.getElementById('communication-stop');
+const communicationRecordingStatus = document.getElementById('communication-recording-status');
 const communicationSubmitButton = document.getElementById('communication-submit');
 const communicationCancelButton = document.getElementById('communication-cancel');
 const THEME_STORAGE_KEY = 'themeMode';
@@ -64,6 +71,11 @@ let sharedParticipants = JSON.parse(localStorage.getItem(SHARED_PARTICIPANTS_KEY
 let sharedExpenses = JSON.parse(localStorage.getItem(SHARED_EXPENSES_KEY) || '[]');
 let communicationItems = JSON.parse(localStorage.getItem(COMMUNICATION_ITEMS_KEY) || '[]');
 let editingCommunicationId = null;
+let communicationAudioData = '';
+let recordingChunks = [];
+let mediaRecorder = null;
+let recordingStream = null;
+let activeAudioElement = null;
 const prefersDarkScheme = window.matchMedia
     ? window.matchMedia('(prefers-color-scheme: dark)')
     : { matches: false, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {} };
@@ -123,58 +135,74 @@ const DEFAULT_COMMUNICATION_ITEMS = [
     {
         id: 'comm-drink',
         title: 'I want a drink',
+        phrase: 'I would like a drink, please.',
         emoji: '🧃',
         color: '#0d6efd',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-snack',
         title: 'I am hungry',
+        phrase: 'I am hungry. Can I have something to eat?',
         emoji: '🍎',
         color: '#fd7e14',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-bathroom',
         title: 'Bathroom',
+        phrase: 'I need to use the bathroom.',
         emoji: '🚻',
         color: '#20c997',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-help',
         title: 'Help me',
+        phrase: 'Please help me.',
         emoji: '🆘',
         color: '#dc3545',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-break',
         title: 'I need a break',
+        phrase: 'I need a break.',
         emoji: '🧸',
         color: '#6f42c1',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-spanish-greeting',
         title: 'Hola',
+        phrase: 'Hola, ¿puedo tener esto?',
         emoji: '😊',
         color: '#17a2b8',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-ar-hello',
         title: 'مرحبا',
+        phrase: 'مرحباً، كيف حالك اليوم؟',
         emoji: '👋',
         color: '#0d6efd',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     },
     {
         id: 'comm-ar-thanks',
         title: 'شكراً',
+        phrase: 'شكراً جزيلاً على مساعدتك.',
         emoji: '🙏',
         color: '#20c997',
-        isCustom: false
+        isCustom: false,
+        audioData: ''
     }
 ];
 
@@ -1070,14 +1098,156 @@ const nextCommunicationColor = (index) => {
 
 const normalizeCommunicationItems = () => {
     communicationItems = communicationItems.map((item, index) => {
-        const { voiceId, audioData, phrase, ...rest } = item;
+        const { voiceId, ...rest } = item;
         return {
             ...rest,
+            phrase: item.phrase || '',
+            audioData: item.audioData || '',
             color: rest.color || nextCommunicationColor(index),
             emoji: normalizeEmojiValue(rest.emoji || rest.title?.charAt(0) || '')
         };
     });
     saveCommunicationItems();
+};
+
+const setRecordingStatus = (message, tone = 'muted') => {
+    if (!communicationRecordingStatus) return;
+    communicationRecordingStatus.textContent = message;
+    communicationRecordingStatus.classList.toggle('text-danger', tone === 'error');
+    communicationRecordingStatus.classList.toggle('text-success', tone === 'success');
+    communicationRecordingStatus.classList.toggle('text-muted', tone === 'muted');
+};
+
+const updateRecordingButton = (isRecording = false) => {
+    if (!communicationRecordButton) return;
+    communicationRecordButton.innerHTML = isRecording
+        ? '<i class="bi bi-stop-circle"></i> Stop recording'
+        : '<i class="bi bi-mic"></i> Start recording';
+    communicationRecordButton.classList.toggle('btn-danger', isRecording);
+    communicationRecordButton.classList.toggle('btn-outline-primary', !isRecording);
+};
+
+const resetRecordingState = () => {
+    communicationAudioData = '';
+    recordingChunks = [];
+    updateRecordingButton(false);
+    communicationPlayRecordingButton?.classList.add('d-none');
+    setRecordingStatus('No recording yet. Please record yourself saying the phrase above.');
+};
+
+const applyRecordingFromItem = (item = null) => {
+    communicationAudioData = item?.audioData || '';
+    const hasAudio = Boolean(communicationAudioData);
+    communicationPlayRecordingButton?.classList.toggle('d-none', !hasAudio);
+    setRecordingStatus(
+        hasAudio
+            ? 'Recording ready. Tap play to preview or record again.'
+            : 'No recording yet. Please record yourself saying the phrase above.',
+        hasAudio ? 'success' : 'muted'
+    );
+    updateRecordingButton(false);
+};
+
+const stopRecordingStream = () => {
+    if (recordingStream) {
+        recordingStream.getTracks().forEach((track) => track.stop());
+        recordingStream = null;
+    }
+};
+
+const stopCommunicationAudio = () => {
+    if (activeAudioElement) {
+        activeAudioElement.pause();
+        activeAudioElement.currentTime = 0;
+        activeAudioElement = null;
+    }
+};
+
+const playAudioData = (audioData) => {
+    if (!audioData) {
+        alert('Please record yourself saying this phrase first.');
+        return;
+    }
+    stopCommunicationAudio();
+    activeAudioElement = new Audio(audioData);
+    activeAudioElement.onended = () => {
+        activeAudioElement = null;
+    };
+    activeAudioElement.play().catch(() => {
+        alert('Unable to play your recording. Please try re-recording.');
+    });
+};
+
+const playFormRecording = () => playAudioData(communicationAudioData);
+
+const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+        alert('Recording is not supported in this browser.');
+        return;
+    }
+    if (typeof MediaRecorder === 'undefined') {
+        alert('Recording is not available in this browser.');
+        return;
+    }
+
+    try {
+        communicationAudioData = '';
+        communicationPlayRecordingButton?.classList.add('d-none');
+        stopCommunicationAudio();
+        recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recordingChunks = [];
+        mediaRecorder = new MediaRecorder(recordingStream);
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) recordingChunks.push(event.data);
+        };
+        mediaRecorder.onstop = () => {
+            const mimeType = recordingChunks[0]?.type || mediaRecorder.mimeType || 'audio/webm';
+            const blob = new Blob(recordingChunks, { type: mimeType });
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                communicationAudioData = reader.result;
+                communicationPlayRecordingButton?.classList.toggle('d-none', !communicationAudioData);
+                setRecordingStatus(
+                    'Recording ready. Tap play to preview or record again.',
+                    communicationAudioData ? 'success' : 'muted'
+                );
+            };
+            reader.readAsDataURL(blob);
+            stopRecordingStream();
+            updateRecordingButton(false);
+        };
+        mediaRecorder.start();
+        updateRecordingButton(true);
+        setRecordingStatus('Recording... tap stop when you are done.', 'success');
+    } catch (error) {
+        setRecordingStatus('Microphone permission is needed to record your voice.', 'error');
+        stopRecordingStream();
+    }
+};
+
+const stopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+    } else {
+        stopRecordingStream();
+        updateRecordingButton(false);
+    }
+};
+
+const toggleRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording();
+    } else {
+        startRecording();
+    }
+};
+
+const playCommunicationItemAudio = (item) => {
+    if (!item.audioData) {
+        alert('Please add your own recording for this card before playing it.');
+        return;
+    }
+    playAudioData(item.audioData);
 };
 
 const focusCommunicationItem = (id) => {
@@ -1099,16 +1269,22 @@ const renderCommunicationItems = () => {
     communicationItems.forEach((item) => {
         const emoji = normalizeEmojiValue(item.emoji);
         const cleanTitle = stripLeadingEmoji(item.title || '', emoji);
+        const cleanPhrase = stripLeadingEmoji(item.phrase || '', emoji);
         const displayTitle = cleanTitle || item.title || 'Communication card';
+        const displayPhrase = cleanPhrase || item.phrase || '';
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'communication-card text-start';
         card.dataset.communicationId = item.id;
         card.style.background = `linear-gradient(145deg, ${hexToRgba(item.color, 0.18)}, var(--card-bg))`;
-        card.setAttribute('aria-label', displayTitle);
+        card.setAttribute('aria-label', `${displayTitle}: ${displayPhrase}`);
+        const recordingMessage = item.audioData
+            ? '<span class="text-primary small fw-semibold">Tap card to play your recording</span>'
+            : '<span class="text-warning small fw-semibold">Recording needed</span>';
         const fallbackEmoji = escapeHtml(emoji);
-        const fallbackText = escapeHtml(displayTitle || 'Ready to speak');
+        const fallbackText = escapeHtml(displayTitle || displayPhrase || 'Ready to speak');
         const safeTitle = escapeHtml(displayTitle);
+        const safePhrase = escapeHtml(displayPhrase || 'Tap to play your recording');
 
         card.innerHTML = `
             <div class="communication-image" style="border-color: ${hexToRgba(item.color, 0.4)};">
@@ -1120,8 +1296,9 @@ const renderCommunicationItems = () => {
                     </div>`}
             </div>
             <div class="fw-semibold">${safeTitle}</div>
+            <div class="text-muted small">${safePhrase}</div>
             <div class="communication-meta">
-                <div class="text-muted small">Tap to highlight</div>
+                <div>${recordingMessage}</div>
                 <div class="communication-actions">
                     <button class="btn btn-outline-danger btn-sm" data-action="delete-communication"><i class="bi bi-trash"></i></button>
                     <button class="btn btn-outline-primary btn-sm" data-action="edit-communication"><i class="bi bi-pencil"></i></button>
@@ -1145,9 +1322,11 @@ const setCommunicationFormMode = (item = null) => {
 
     if (isEditing) {
         communicationTitleInput.value = item.title;
+        communicationPhraseInput.value = item.phrase;
         if (communicationEmojiInput) {
             communicationEmojiInput.value = item.emoji || '';
         }
+        applyRecordingFromItem(item);
         if (item.imageData) {
             communicationPreview.innerHTML = `<img src="${item.imageData}" alt="${item.title}">`;
             communicationPreview.dataset.imageData = item.imageData;
@@ -1160,6 +1339,7 @@ const setCommunicationFormMode = (item = null) => {
             communicationEmojiInput.value = '';
         }
         resetCommunicationPreview();
+        resetRecordingState();
     }
 
     if (communicationSubmitButton) {
@@ -1174,6 +1354,8 @@ const setCommunicationFormMode = (item = null) => {
 const handleCommunicationFormSubmit = (e) => {
     e.preventDefault();
     const title = communicationTitleInput.value.trim();
+    const phrase = communicationPhraseInput.value.trim();
+    const audioData = communicationAudioData;
     const currentItem = editingCommunicationId
         ? communicationItems.find((item) => item.id === editingCommunicationId)
         : null;
@@ -1182,7 +1364,11 @@ const handleCommunicationFormSubmit = (e) => {
         '🗣️'
     );
 
-    if (!title) return;
+    if (!title || !phrase) return;
+    if (!audioData) {
+        alert('Please record yourself saying this phrase before saving the button.');
+        return;
+    }
 
     const createItem = (imageData = '') => {
         let focusId = editingCommunicationId;
@@ -1192,6 +1378,8 @@ const handleCommunicationFormSubmit = (e) => {
                     ? {
                         ...item,
                         title,
+                        phrase,
+                        audioData,
                         imageData,
                         emoji
                     }
@@ -1201,6 +1389,8 @@ const handleCommunicationFormSubmit = (e) => {
             const newItem = {
                 id: `comm-${generateId()}`,
                 title,
+                phrase,
+                audioData,
                 imageData,
                 emoji,
                 color: nextCommunicationColor(communicationItems.length),
@@ -1273,6 +1463,17 @@ toggleHistoryButton.addEventListener('click', () => {
         historySection.dataset.userToggled = 'true';
     }
     toggleHistoryButton.innerHTML = `<i class="bi bi-chevron-${isHidden ? 'up' : 'down'}"></i> ${isHidden ? 'Hide' : 'Show'}`;
+});
+
+const setInputSectionVisibility = (shouldShow) => {
+    if (!inputSection || !toggleInputButton) return;
+    inputSection.style.display = shouldShow ? 'block' : 'none';
+    toggleInputButton.innerHTML = `<i class="bi bi-chevron-${shouldShow ? 'up' : 'down'}"></i> ${shouldShow ? 'Hide' : 'Show'}`;
+};
+
+toggleInputButton?.addEventListener('click', () => {
+    const isHidden = inputSection?.style.display === 'none';
+    setInputSectionVisibility(isHidden);
 });
 
 historyList.addEventListener('click', (e) => {
@@ -1399,6 +1600,8 @@ resetSharedBalancesButton?.addEventListener('click', () => {
 
 communicationForm?.addEventListener('submit', handleCommunicationFormSubmit);
 communicationImageInput?.addEventListener('change', handleCommunicationImageChange);
+communicationRecordButton?.addEventListener('click', toggleRecording);
+communicationPlayRecordingButton?.addEventListener('click', playFormRecording);
 communicationGrid?.addEventListener('click', (e) => {
     const card = e.target.closest('[data-communication-id]');
     if (!card) return;
@@ -1417,7 +1620,11 @@ communicationGrid?.addEventListener('click', (e) => {
         return;
     }
 
-    focusCommunicationItem(id);
+    playCommunicationItemAudio(item);
+});
+communicationStopButton?.addEventListener('click', () => {
+    stopCommunicationAudio();
+    stopRecording();
 });
 communicationCancelButton?.addEventListener('click', () => setCommunicationFormMode());
 
@@ -1434,7 +1641,8 @@ accentOptionsContainer?.addEventListener('click', (e) => {
 });
 
 mobileAddButton.addEventListener('click', () => {
-    document.querySelector('.input-section').scrollIntoView({ behavior: 'smooth' });
+    setInputSectionVisibility(true);
+    inputSection?.scrollIntoView({ behavior: 'smooth' });
 });
 
 // Initialize
@@ -1454,4 +1662,5 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBalance();
     displayTransactions();
     setCommunicationFormMode();
+    setInputSectionVisibility(true);
 });
