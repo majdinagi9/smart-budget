@@ -46,7 +46,6 @@ const sharedExpenseSummary = document.getElementById('shared-expense-summary');
 const resetSharedBalancesButton = document.getElementById('reset-shared-balances');
 const communicationForm = document.getElementById('communication-form');
 const communicationTitleInput = document.getElementById('communication-title');
-const communicationPhraseInput = document.getElementById('communication-phrase');
 const communicationImageInput = document.getElementById('communication-image');
 const communicationEmojiInput = document.getElementById('communication-emoji');
 const communicationPreview = document.getElementById('communication-preview');
@@ -1320,7 +1319,6 @@ const setCommunicationFormMode = (item = null) => {
 
     if (isEditing) {
         communicationTitleInput.value = item.title;
-        communicationPhraseInput.value = item.phrase;
         if (communicationEmojiInput) {
             communicationEmojiInput.value = item.emoji || '';
         }
@@ -1352,7 +1350,7 @@ const setCommunicationFormMode = (item = null) => {
 const handleCommunicationFormSubmit = (e) => {
     e.preventDefault();
     const title = communicationTitleInput.value.trim();
-    const phrase = communicationPhraseInput.value.trim();
+    const phrase = currentItem?.phrase || title;
     const audioData = communicationAudioData;
     const currentItem = editingCommunicationId
         ? communicationItems.find((item) => item.id === editingCommunicationId)
@@ -1362,7 +1360,7 @@ const handleCommunicationFormSubmit = (e) => {
         '🗣️'
     );
 
-    if (!title || !phrase) return;
+    if (!title) return;
     if (!audioData) {
         alert('Please record yourself saying this phrase before saving the button.');
         return;
