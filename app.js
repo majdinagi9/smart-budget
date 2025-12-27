@@ -1131,7 +1131,7 @@ const resetRecordingState = () => {
     recordingChunks = [];
     updateRecordingButton(false);
     communicationPlayRecordingButton?.classList.add('d-none');
-    setRecordingStatus('No recording yet. Please record yourself saying the phrase above.');
+    setRecordingStatus('No recording yet. You can still save the button without a recording.');
 };
 
 const applyRecordingFromItem = (item = null) => {
@@ -1141,7 +1141,7 @@ const applyRecordingFromItem = (item = null) => {
     setRecordingStatus(
         hasAudio
             ? 'Recording ready. Tap play to preview or record again.'
-            : 'No recording yet. Please record yourself saying the phrase above.',
+            : 'No recording yet. You can still save the button without a recording.',
         hasAudio ? 'success' : 'muted'
     );
     updateRecordingButton(false);
@@ -1361,10 +1361,6 @@ const handleCommunicationFormSubmit = (e) => {
     );
 
     if (!title) return;
-    if (!audioData) {
-        alert('Please record yourself saying this phrase before saving the button.');
-        return;
-    }
 
     const createItem = (imageData = '') => {
         let focusId = editingCommunicationId;
