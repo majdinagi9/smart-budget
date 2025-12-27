@@ -1249,6 +1249,18 @@ const playCommunicationItemAudio = (item) => {
     playAudioData(item.audioData);
 };
 
+const focusCommunicationItem = (id) => {
+    if (!communicationGrid || !id) return;
+    const targetCard = communicationGrid.querySelector(`[data-communication-id="${id}"]`);
+    if (!targetCard) return;
+    targetCard.classList.add('communication-card--focused');
+    targetCard.focus({ preventScroll: true });
+    targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => {
+        targetCard.classList.remove('communication-card--focused');
+    }, 1800);
+};
+
 const renderCommunicationItems = () => {
     if (!communicationGrid) return;
     communicationGrid.innerHTML = '';
@@ -1358,6 +1370,7 @@ const handleCommunicationFormSubmit = (e) => {
     }
 
     const createItem = (imageData = '') => {
+        let focusId = editingCommunicationId;
         if (editingCommunicationId) {
             communicationItems = communicationItems.map((item) => (
                 item.id === editingCommunicationId
@@ -1383,11 +1396,12 @@ const handleCommunicationFormSubmit = (e) => {
                 isCustom: true
             };
             communicationItems.push(newItem);
+            focusId = newItem.id;
         }
         saveCommunicationItems();
         renderCommunicationItems();
         setCommunicationFormMode();
-        communicationTitleInput.focus();
+        focusCommunicationItem(focusId);
     };
 
     const file = communicationImageInput.files?.[0];
