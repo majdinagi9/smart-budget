@@ -1350,11 +1350,11 @@ const setCommunicationFormMode = (item = null) => {
 const handleCommunicationFormSubmit = (e) => {
     e.preventDefault();
     const title = communicationTitleInput.value.trim();
-    const phrase = currentItem?.phrase || title;
     const audioData = communicationAudioData;
     const currentItem = editingCommunicationId
         ? communicationItems.find((item) => item.id === editingCommunicationId)
         : null;
+    const phrase = currentItem?.phrase || title;
     const emoji = normalizeEmojiValue(
         (communicationEmojiInput?.value || '').trim() || currentItem?.emoji || title.charAt(0),
         '🗣️'
