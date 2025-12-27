@@ -904,14 +904,8 @@
                                         <small class="text-muted">Pick the emoji that appears on the card if no picture is used.</small>
                                     </div>
                                     <div>
-                                        <div class="d-flex align-items-center justify-content-between gap-2">
-                                            <label class="form-label mb-0">Record your voice</label>
-                                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#communication-recording-body" aria-expanded="false" aria-controls="communication-recording-body">
-                                                <i class="bi bi-chevron-down"></i>
-                                                <span class="visually-hidden">Toggle recording section</span>
-                                            </button>
-                                        </div>
-                                        <div id="communication-recording-body" class="collapse mt-2">
+                                        <label class="form-label mb-0">Record your voice</label>
+                                        <div class="mt-2">
                                             <div class="d-flex align-items-center gap-2 flex-wrap">
                                                 <button type="button" class="btn btn-outline-primary btn-sm" id="communication-record">
                                                     <i class="bi bi-mic"></i> Start recording
@@ -925,10 +919,18 @@
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="form-label" for="communication-image">Picture (optional)</label>
-                                        <input type="file" id="communication-image" class="form-control" accept="image/*">
-                                        <div id="communication-preview" class="upload-preview mt-2">No image selected</div>
-                                        <small class="text-muted">Use a friendly photo or symbol to make the request clear.</small>
+                                        <div class="d-flex align-items-center justify-content-between gap-2">
+                                            <label class="form-label mb-0" for="communication-image">Picture (optional)</label>
+                                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#communication-picture-body" aria-expanded="false" aria-controls="communication-picture-body">
+                                                <i class="bi bi-chevron-down"></i>
+                                                <span class="visually-hidden">Toggle picture section</span>
+                                            </button>
+                                        </div>
+                                        <div id="communication-picture-body" class="collapse mt-2">
+                                            <input type="file" id="communication-image" class="form-control" accept="image/*">
+                                            <div id="communication-preview" class="upload-preview mt-2">No image selected</div>
+                                            <small class="text-muted">Use a friendly photo or symbol to make the request clear.</small>
+                                        </div>
                                     </div>
                                     <div class="d-flex gap-2">
                                         <button type="submit" class="btn btn-primary flex-grow-1" id="communication-submit">
