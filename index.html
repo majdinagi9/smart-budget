@@ -40,6 +40,8 @@
             background-color: #f8f9fa;
             transition: all 0.3s ease;
             color: #212529;
+            font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
         }
         
         body.dark-mode {
@@ -48,11 +50,32 @@
             --card-bg: #2c3034;
             --card-border: #3c4044;
             --panel-bg: #1f2429;
+            color-scheme: dark;
         }
 
         body.dark-mode .card {
             background-color: var(--card-bg);
             border-color: var(--card-border);
+        }
+
+        body.dark-mode .text-muted {
+            color: #adb5bd !important;
+        }
+
+        body.dark-mode .form-control,
+        body.dark-mode .form-select {
+            background-color: #1f2429;
+            color: #f8f9fa;
+            border-color: #3c4044;
+        }
+
+        body.dark-mode .form-control::placeholder {
+            color: #9aa1a9;
+        }
+
+        body.dark-mode .form-check-input {
+            background-color: #1f2429;
+            border-color: #3c4044;
         }
 
         .communication-form-card,
@@ -108,6 +131,10 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
+        }
+
+        body.dark-mode .communication-image {
+            background: rgba(0, 0, 0, 0.3);
         }
 
         .communication-image img {
@@ -179,6 +206,11 @@
             background: rgba(0, 0, 0, 0.02);
         }
 
+        body.dark-mode .upload-preview {
+            background: rgba(255, 255, 255, 0.05);
+            color: #adb5bd;
+        }
+
         .upload-preview img {
             width: 100%;
             height: 100%;
@@ -220,6 +252,12 @@
         .form-check-label {
             margin-left: 5px;
             font-weight: 500;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem var(--accent-color-soft);
         }
         
         .btn-success {
@@ -828,7 +866,7 @@
                                 <i class="bi bi-stars text-primary"></i>
                                 <div>
                                     <h5 class="mb-1">Create a button</h5>
-                                    <small class="text-muted">Add your own card with a photo and phrase.</small>
+                                    <small class="text-muted">Add a quick card with a title, emoji, and optional photo.</small>
                                 </div>
                             </div>
                             <form id="communication-form" class="vstack gap-3">
@@ -841,24 +879,6 @@
                                     <label class="form-label" for="communication-emoji">Emoji or symbol (optional)</label>
                                     <input type="text" id="communication-emoji" class="form-control communication-emoji-input" placeholder="😀" inputmode="text" autocomplete="off" maxlength="4">
                                     <small class="text-muted">Pick the emoji that appears on the card if no picture is used.</small>
-                                </div>
-                                <div>
-                                    <label class="form-label" for="communication-phrase">Spoken message</label>
-                                    <textarea id="communication-phrase" class="form-control" rows="2" placeholder="What should be spoken aloud?" required></textarea>
-                                    <small class="text-muted">This plays when the card is tapped.</small>
-                                </div>
-                                <div>
-                                    <label class="form-label">Record your voice</label>
-                                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                                        <button type="button" class="btn btn-outline-primary btn-sm" id="communication-record">
-                                            <i class="bi bi-mic"></i> Start recording
-                                        </button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="communication-play-recording">
-                                            <i class="bi bi-play-circle"></i> Play recording
-                                        </button>
-                                        <small class="text-muted" id="communication-recording-status">No recording yet. Please record yourself saying the phrase above.</small>
-                                    </div>
-                                    <small class="text-muted d-block mt-1">Your recording will play when the card is tapped.</small>
                                 </div>
                                 <div>
                                     <label class="form-label" for="communication-image">Picture (optional)</label>
@@ -884,12 +904,7 @@
                             <div class="communication-header d-flex justify-content-between align-items-start mb-3 flex-wrap gap-3">
                                 <div class="flex-grow-1">
                                     <h5 class="mb-1">Communication board</h5>
-                                    <small class="text-muted">Tap any card to play your own recording. Colorful images guide quick choices.</small>
-                                </div>
-                                <div class="d-flex align-items-center gap-2 flex-wrap">
-                                    <button class="btn btn-outline-secondary btn-sm" id="communication-stop">
-                                        <i class="bi bi-stop-circle"></i> Stop playback
-                                    </button>
+                                    <small class="text-muted">Tap any card to highlight it. Colorful images guide quick choices.</small>
                                 </div>
                             </div>
                             <div id="communication-grid" class="communication-grid flex-grow-1"></div>
