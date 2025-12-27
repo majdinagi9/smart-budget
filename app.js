@@ -10,6 +10,8 @@ const balanceScope = document.getElementById('balance-scope');
 const historyList = document.getElementById('history-list');
 const historySection = document.getElementById('history-section');
 const toggleHistoryButton = document.getElementById('toggle-history');
+const inputSection = document.getElementById('input-section');
+const toggleInputButton = document.getElementById('toggle-input');
 const exportDataButton = document.getElementById('export-data');
 const clearDataButton = document.getElementById('clear-data');
 const mobileAddButton = document.getElementById('mobile-add-btn');
@@ -1245,7 +1247,6 @@ const deleteCommunicationItem = (id) => {
     const item = communicationItems.find(entry => entry.id === id);
     if (!item) return;
     if (!confirm(`Delete "${item.title || 'this card'}"?`)) return;
-    stopCommunicationAudio();
     communicationItems = communicationItems.filter(entry => entry.id !== id);
     saveCommunicationItems();
     renderCommunicationItems();
@@ -1273,6 +1274,17 @@ toggleHistoryButton.addEventListener('click', () => {
         historySection.dataset.userToggled = 'true';
     }
     toggleHistoryButton.innerHTML = `<i class="bi bi-chevron-${isHidden ? 'up' : 'down'}"></i> ${isHidden ? 'Hide' : 'Show'}`;
+});
+
+const setInputSectionVisibility = (shouldShow) => {
+    if (!inputSection || !toggleInputButton) return;
+    inputSection.style.display = shouldShow ? 'block' : 'none';
+    toggleInputButton.innerHTML = `<i class="bi bi-chevron-${shouldShow ? 'up' : 'down'}"></i> ${shouldShow ? 'Hide' : 'Show'}`;
+};
+
+toggleInputButton?.addEventListener('click', () => {
+    const isHidden = inputSection?.style.display === 'none';
+    setInputSectionVisibility(isHidden);
 });
 
 historyList.addEventListener('click', (e) => {
@@ -1434,7 +1446,8 @@ accentOptionsContainer?.addEventListener('click', (e) => {
 });
 
 mobileAddButton.addEventListener('click', () => {
-    document.querySelector('.input-section').scrollIntoView({ behavior: 'smooth' });
+    setInputSectionVisibility(true);
+    inputSection?.scrollIntoView({ behavior: 'smooth' });
 });
 
 // Initialize
@@ -1454,4 +1467,5 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBalance();
     displayTransactions();
     setCommunicationFormMode();
+    setInputSectionVisibility(true);
 });
