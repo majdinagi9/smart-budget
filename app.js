@@ -56,12 +56,16 @@ const communicationStopButton = document.getElementById('communication-stop');
 const communicationRecordingStatus = document.getElementById('communication-recording-status');
 const communicationSubmitButton = document.getElementById('communication-submit');
 const communicationCancelButton = document.getElementById('communication-cancel');
+const communicationFormToggle = document.getElementById('communication-form-toggle');
+const communicationFormBody = document.getElementById('communication-form-body');
 const THEME_STORAGE_KEY = 'themeMode';
 const ACCENT_STORAGE_KEY = 'accentColor';
 const TODO_STORAGE_KEY = 'organizerTodos';
 const SHARED_PARTICIPANTS_KEY = 'sharedParticipants';
 const SHARED_EXPENSES_KEY = 'sharedExpenses';
 const COMMUNICATION_ITEMS_KEY = 'communicationItems';
+const ACTIVE_TAB_STORAGE_KEY = 'activeTab';
+const COMMUNICATION_FORM_COLLAPSE_KEY = 'communicationFormCollapsed';
 
 let transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
 let editTransactionId = null;
@@ -324,12 +328,31 @@ const setActiveTab = (target) => {
         const isActive = panel.dataset.tabPanel === target;
         panel.classList.toggle('active', isActive);
     });
+    if (target) {
+        localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, target);
+    }
 };
 
 const setupTabs = () => {
     tabButtons.forEach(button => {
         button.addEventListener('click', () => setActiveTab(button.dataset.tabTarget));
     });
+};
+
+const updateCommunicationFormToggle = (isExpanded) => {
+    if (!communicationFormToggle) return;
+    communicationFormToggle.innerHTML = `
+        <i class="bi bi-chevron-${isExpanded ? 'up' : 'down'}"></i>
+        <span class="visually-hidden">Toggle create button form</span>
+    `;
+    communicationFormToggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+};
+
+const applyCommunicationFormState = (shouldExpand) => {
+    if (!communicationFormBody) return;
+    communicationFormBody.classList.toggle('show', shouldExpand);
+    updateCommunicationFormToggle(shouldExpand);
+    localStorage.setItem(COMMUNICATION_FORM_COLLAPSE_KEY, shouldExpand ? 'expanded' : 'collapsed');
 };
 
 const saveTodos = () => {
@@ -1621,6 +1644,8 @@ communicationStopButton?.addEventListener('click', () => {
     stopRecording();
 });
 communicationCancelButton?.addEventListener('click', () => setCommunicationFormMode());
+communicationFormBody?.addEventListener('shown.bs.collapse', () => applyCommunicationFormState(true));
+communicationFormBody?.addEventListener('hidden.bs.collapse', () => applyCommunicationFormState(false));
 
 themeModeSelect?.addEventListener('change', () => {
     const mode = themeModeSelect.value;
@@ -1644,7 +1669,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCategoryPills();
     initializeThemeControls();
     setupTabs();
-    setActiveTab('finance');
+    const savedTab = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+    const validTab = savedTab && Array.from(tabButtons).some((button) => button.dataset.tabTarget === savedTab);
+    setActiveTab(validTab ? savedTab : 'finance');
     renderTodos();
     renderSharedParticipants();
     updateSharedExpenseControls();
@@ -1657,4 +1684,7 @@ document.addEventListener('DOMContentLoaded', () => {
     displayTransactions();
     setCommunicationFormMode();
     setInputSectionVisibility(true);
+    const savedCommunicationFormState = localStorage.getItem(COMMUNICATION_FORM_COLLAPSE_KEY);
+    const shouldExpand = savedCommunicationFormState !== 'collapsed';
+    applyCommunicationFormState(shouldExpand);
 });
