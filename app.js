@@ -1282,7 +1282,6 @@ const renderCommunicationItems = () => {
             ? '<span class="text-primary small fw-semibold">Tap card to play your recording</span>'
             : '<span class="text-warning small fw-semibold">Recording needed</span>';
         const fallbackEmoji = escapeHtml(emoji);
-        const fallbackText = escapeHtml(displayTitle || displayPhrase || 'Ready to speak');
         const safeTitle = escapeHtml(displayTitle);
         const safePhrase = escapeHtml(displayPhrase || 'Tap to play your recording');
 
@@ -1292,7 +1291,6 @@ const renderCommunicationItems = () => {
                     ? `<img src="${item.imageData}" alt="${item.title}">`
                     : `<div class="communication-placeholder" aria-hidden="true">
                         <span class="communication-emoji">${fallbackEmoji}</span>
-                        <span class="communication-text-fallback">${fallbackText}</span>
                     </div>`}
             </div>
             <div class="fw-semibold">${safeTitle}</div>
