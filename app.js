@@ -392,6 +392,7 @@ const renderTodos = () => {
         const li = document.createElement('li');
         li.className = 'list-group-item';
         li.dataset.id = todo.id;
+        const safeTodoText = escapeHtml(todo.text || '');
 
         const subtaskMarkup = todo.subtasks.length
             ? `<ul class="list-group list-group-flush small ms-4 mt-2">
@@ -399,7 +400,7 @@ const renderTodos = () => {
                     <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                         <div class="d-flex align-items-center gap-2">
                             <input class="form-check-input" type="checkbox" data-role="subtodo-toggle" data-subtask-id="${subtask.id}" ${subtask.completed ? 'checked' : ''}>
-                            <span class="${subtask.completed ? 'text-decoration-line-through text-muted' : ''}">${subtask.text}</span>
+                            <span class="${subtask.completed ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(subtask.text || '')}</span>
                         </div>
                         <button class="btn btn-sm btn-outline-danger" data-action="delete-subtask" data-subtask-id="${subtask.id}">
                             <i class="bi bi-x"></i>
@@ -413,7 +414,7 @@ const renderTodos = () => {
             <div class="flex-grow-1">
                 <div class="todo-meta">
                     <input class="form-check-input me-2" type="checkbox" data-role="todo-toggle" ${todo.completed ? 'checked' : ''}>
-                    <span class="${todo.completed ? 'text-decoration-line-through text-muted' : ''}">${todo.text}</span>
+                    <span class="${todo.completed ? 'text-decoration-line-through text-muted' : ''}">${safeTodoText}</span>
                     <span class="badge ${meta.className}">${meta.label}</span>
                 </div>
                 ${subtaskMarkup}
@@ -518,14 +519,14 @@ const getSharedBalances = () => {
 const updateSharedExpenseControls = () => {
     if (!sharedExpensePayer || !sharedExpenseParticipants) return;
     sharedExpensePayer.innerHTML = sharedParticipants
-        .map(participant => `<option value="${participant.id}">${participant.name}</option>`)
+        .map(participant => `<option value="${participant.id}">${escapeHtml(participant.name || '')}</option>`)
         .join('');
     
     sharedExpenseParticipants.innerHTML = sharedParticipants
         .map(participant => `
             <label class="form-check form-check-inline d-flex align-items-center gap-1">
                 <input class="form-check-input" type="checkbox" value="${participant.id}" checked>
-                <span>${participant.name}</span>
+                <span>${escapeHtml(participant.name || '')}</span>
             </label>
         `).join('');
 };
@@ -543,9 +544,10 @@ const renderSharedParticipants = () => {
         .map(participant => {
             const balance = balances[participant.id] || 0;
             const balanceClass = balance >= 0 ? 'text-success' : 'text-danger';
+            const safeName = escapeHtml(participant.name || '');
             return `
                 <li class="shared-balance" data-id="${participant.id}">
-                    <strong>${participant.name}</strong>
+                    <strong>${safeName}</strong>
                     <div class="d-flex align-items-center gap-2">
                         <span class="${balanceClass}">${formatCurrency(balance, { includePlus: true })}</span>
                         <button class="btn btn-sm btn-outline-danger" data-shared-action="delete-participant">
@@ -575,13 +577,15 @@ const renderSharedExpenseHistory = () => {
         .map(expense => {
             const payer = sharedParticipants.find(p => p.id === expense.payerId);
             const participants = expense.participantIds
-                .map(id => sharedParticipants.find(p => p.id === id)?.name || 'Unknown')
+                .map(id => escapeHtml(sharedParticipants.find(p => p.id === id)?.name || 'Unknown'))
                 .join(', ');
+            const safeDescription = escapeHtml(expense.description || '');
+            const safePayerName = escapeHtml(payer?.name || 'Unknown');
             return `
                 <li class="list-group-item" data-id="${expense.id}">
                     <div>
-                        <div class="fw-semibold">${expense.description}</div>
-                        <div class="text-muted small">Paid by ${payer?.name || 'Unknown'} · Split with ${participants}</div>
+                        <div class="fw-semibold">${safeDescription}</div>
+                        <div class="text-muted small">Paid by ${safePayerName} · Split with ${participants}</div>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <span class="shared-expense-chip">${formatCurrency(expense.amount)}</span>
@@ -815,13 +819,15 @@ function createTransactionElement(transaction) {
     const categoryColor = getCategoryColor(transaction.category);
     const categoryName = getCategoryName(transaction.category);
     const transactionDate = new Date(transaction.date || transaction.dateModified || transaction.id);
+    const safeDescription = escapeHtml(transaction.description || '');
+    const safeCategoryName = escapeHtml(categoryName);
 
     li.innerHTML = `
         <div class="transaction-details">
             <div class="transaction-info">
-                <div class="fw-bold">${transaction.description}</div>
+                <div class="fw-bold">${safeDescription}</div>
                 <div class="transaction-meta">
-                    <span class="category-badge" style="background-color: ${categoryColor}">${categoryName}</span>
+                    <span class="category-badge" style="background-color: ${categoryColor}">${safeCategoryName}</span>
                     <span>${transactionDate.toLocaleDateString()}</span>
                 </div>
             </div>
