@@ -14,7 +14,6 @@ const inputSection = document.getElementById('input-section');
 const toggleInputButton = document.getElementById('toggle-input');
 const exportDataButton = document.getElementById('export-data');
 const clearDataButton = document.getElementById('clear-data');
-const mobileAddButton = document.getElementById('mobile-add-btn');
 const tabButtons = document.querySelectorAll('[data-tab-target]');
 const tabPanels = document.querySelectorAll('[data-tab-panel]');
 const categoryPillGroup = document.getElementById('category-pill-group');
@@ -1792,11 +1791,6 @@ accentOptionsContainer?.addEventListener('click', (e) => {
     const swatch = e.target.closest('.accent-swatch');
     if (!swatch) return;
     setAccent(swatch.dataset.accent);
-});
-
-mobileAddButton.addEventListener('click', () => {
-    setInputSectionVisibility(true);
-    inputSection?.scrollIntoView({ behavior: 'smooth' });
 });
 
 // Initialize
