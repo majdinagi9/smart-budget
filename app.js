@@ -251,6 +251,8 @@ const formatCurrency = (value, { includePlus = false } = {}) => {
     return base;
 };
 
+const escapeCsvCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
 const stripLeadingEmoji = (text = '', emoji = '') => {
     if (!text) return '';
     const trimmedText = text.trimStart();
@@ -393,10 +395,6 @@ const saveSharedParticipants = () => {
 
 const saveSharedExpenses = () => {
     safeStorage.set(SHARED_EXPENSES_KEY, JSON.stringify(sharedExpenses));
-};
-
-const saveSharedTodos = () => {
-    safeStorage.set(SHARED_TODOS_KEY, JSON.stringify(sharedTodos));
 };
 
 const updateTodoProgress = () => {
@@ -1130,8 +1128,8 @@ function exportToCSV() {
             t.type === 'income' ? Math.abs(t.amount) : -Math.abs(t.amount)
         ])
     ]
-    .map(row => row.map(cell => `"${cell}"`).join(','))
-    .join('\n');
+        .map(row => row.map(cell => escapeCsvCell(cell)).join(','))
+        .join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -1342,11 +1340,12 @@ const renderCommunicationItems = () => {
         const cleanPhrase = stripLeadingEmoji(item.phrase || '', emoji);
         const displayTitle = cleanTitle || item.title || 'Communication card';
         const displayPhrase = cleanPhrase || item.phrase || '';
-        const card = document.createElement('button');
-        card.type = 'button';
+        const card = document.createElement('div');
         card.className = 'communication-card text-start';
         card.dataset.communicationId = item.id;
         card.style.background = `linear-gradient(145deg, ${hexToRgba(item.color, 0.18)}, var(--card-bg))`;
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
         card.setAttribute('aria-label', `${displayTitle}: ${displayPhrase}`);
         const recordingMessage = item.audioData
             ? '<span class="text-primary small fw-semibold">Tap card to play your recording</span>'
@@ -1354,11 +1353,12 @@ const renderCommunicationItems = () => {
         const fallbackEmoji = escapeHtml(emoji);
         const safeTitle = escapeHtml(displayTitle);
         const safePhrase = escapeHtml(displayPhrase || 'Tap to play your recording');
+        const safeAlt = escapeHtml(item.title || displayTitle);
 
         card.innerHTML = `
             <div class="communication-image" style="border-color: ${hexToRgba(item.color, 0.4)};">
                 ${item.imageData
-                    ? `<img src="${item.imageData}" alt="${item.title}">`
+                    ? `<img src="${item.imageData}" alt="${safeAlt}">`
                     : `<div class="communication-placeholder" aria-hidden="true">
                         <span class="communication-emoji">${fallbackEmoji}</span>
                     </div>`}
@@ -1395,7 +1395,8 @@ const setCommunicationFormMode = (item = null) => {
         }
         applyRecordingFromItem(item);
         if (item.imageData) {
-            communicationPreview.innerHTML = `<img src="${item.imageData}" alt="${item.title}">`;
+            const safeTitle = escapeHtml(item.title || 'Communication image');
+            communicationPreview.innerHTML = `<img src="${item.imageData}" alt="${safeTitle}">`;
             communicationPreview.dataset.imageData = item.imageData;
         } else {
             resetCommunicationPreview();
@@ -1684,6 +1685,18 @@ communicationGrid?.addEventListener('click', (e) => {
     }
 
     playCommunicationItemAudio(item);
+});
+communicationGrid?.addEventListener('keydown', (e) => {
+    const card = e.target.closest('[data-communication-id]');
+    if (!card) return;
+    if (e.target.closest('button')) return;
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    const id = card.dataset.communicationId;
+    const item = communicationItems.find(entry => entry.id === id);
+    if (item) {
+        playCommunicationItemAudio(item);
+    }
 });
 communicationStopButton?.addEventListener('click', () => {
     stopCommunicationAudio();
