@@ -68,12 +68,39 @@ const COMMUNICATION_ITEMS_KEY = 'communicationItems';
 const ACTIVE_TAB_STORAGE_KEY = 'activeTab';
 const COMMUNICATION_FORM_COLLAPSE_KEY = 'communicationFormCollapsed';
 
-let transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+const safeStorage = {
+    get(key) {
+        try {
+            return localStorage.getItem(key);
+        } catch (error) {
+            return null;
+        }
+    },
+    set(key, value) {
+        try {
+            localStorage.setItem(key, value);
+        } catch (error) {
+            // Ignore storage errors (e.g. disabled storage or quota exceeded).
+        }
+    }
+};
+
+const safeJsonParse = (key, fallback) => {
+    const rawValue = safeStorage.get(key);
+    if (!rawValue) return fallback;
+    try {
+        return JSON.parse(rawValue);
+    } catch (error) {
+        return fallback;
+    }
+};
+
+let transactions = safeJsonParse('transactions', []);
 let editTransactionId = null;
-let todos = JSON.parse(localStorage.getItem(TODO_STORAGE_KEY) || '[]');
-let sharedParticipants = JSON.parse(localStorage.getItem(SHARED_PARTICIPANTS_KEY) || '[]');
-let sharedExpenses = JSON.parse(localStorage.getItem(SHARED_EXPENSES_KEY) || '[]');
-let communicationItems = JSON.parse(localStorage.getItem(COMMUNICATION_ITEMS_KEY) || '[]');
+let todos = safeJsonParse(TODO_STORAGE_KEY, []);
+let sharedParticipants = safeJsonParse(SHARED_PARTICIPANTS_KEY, []);
+let sharedExpenses = safeJsonParse(SHARED_EXPENSES_KEY, []);
+let communicationItems = safeJsonParse(COMMUNICATION_ITEMS_KEY, []);
 let editingCommunicationId = null;
 let communicationAudioData = '';
 let recordingChunks = [];
@@ -310,14 +337,14 @@ communicationItems = Array.isArray(communicationItems)
     : [];
 if (!communicationItems.length) {
     communicationItems = DEFAULT_COMMUNICATION_ITEMS.map(item => ({ ...item }));
-    localStorage.setItem(COMMUNICATION_ITEMS_KEY, JSON.stringify(communicationItems));
+    safeStorage.set(COMMUNICATION_ITEMS_KEY, JSON.stringify(communicationItems));
 }
 if (!sharedParticipants.length) {
     const baseId = Date.now();
     sharedParticipants = [
         { id: baseId, name: 'You' }
     ];
-    localStorage.setItem(SHARED_PARTICIPANTS_KEY, JSON.stringify(sharedParticipants));
+    safeStorage.set(SHARED_PARTICIPANTS_KEY, JSON.stringify(sharedParticipants));
 }
 
 const setActiveTab = (target) => {
@@ -330,7 +357,7 @@ const setActiveTab = (target) => {
         panel.classList.toggle('active', isActive);
     });
     if (target) {
-        localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, target);
+        safeStorage.set(ACTIVE_TAB_STORAGE_KEY, target);
     }
 };
 
@@ -353,23 +380,23 @@ const applyCommunicationFormState = (shouldExpand) => {
     if (!communicationFormBody) return;
     communicationFormBody.classList.toggle('show', shouldExpand);
     updateCommunicationFormToggle(shouldExpand);
-    localStorage.setItem(COMMUNICATION_FORM_COLLAPSE_KEY, shouldExpand ? 'expanded' : 'collapsed');
+    safeStorage.set(COMMUNICATION_FORM_COLLAPSE_KEY, shouldExpand ? 'expanded' : 'collapsed');
 };
 
 const saveTodos = () => {
-    localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todos));
+    safeStorage.set(TODO_STORAGE_KEY, JSON.stringify(todos));
 };
 
 const saveSharedParticipants = () => {
-    localStorage.setItem(SHARED_PARTICIPANTS_KEY, JSON.stringify(sharedParticipants));
+    safeStorage.set(SHARED_PARTICIPANTS_KEY, JSON.stringify(sharedParticipants));
 };
 
 const saveSharedExpenses = () => {
-    localStorage.setItem(SHARED_EXPENSES_KEY, JSON.stringify(sharedExpenses));
+    safeStorage.set(SHARED_EXPENSES_KEY, JSON.stringify(sharedExpenses));
 };
 
 const saveSharedTodos = () => {
-    localStorage.setItem(SHARED_TODOS_KEY, JSON.stringify(sharedTodos));
+    safeStorage.set(SHARED_TODOS_KEY, JSON.stringify(sharedTodos));
 };
 
 const updateTodoProgress = () => {
@@ -727,7 +754,7 @@ const applyAccent = (color) => {
 };
 
 const setAccent = (color) => {
-    localStorage.setItem(ACCENT_STORAGE_KEY, color);
+    safeStorage.set(ACCENT_STORAGE_KEY, color);
     applyAccent(color);
     accentOptionsContainer?.querySelectorAll('.accent-swatch').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.accent === color);
@@ -743,22 +770,22 @@ const updateThemeButtons = (mode) => {
 };
 
 const setThemeMode = (mode) => {
-    localStorage.setItem(THEME_STORAGE_KEY, mode);
+    safeStorage.set(THEME_STORAGE_KEY, mode);
     applyTheme(mode);
     updateThemeButtons(mode);
 };
 
 const initializeThemeControls = () => {
-    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'auto';
+    const savedTheme = safeStorage.get(THEME_STORAGE_KEY) || 'auto';
     updateThemeButtons(savedTheme);
     applyTheme(savedTheme);
     
-    const savedAccent = localStorage.getItem(ACCENT_STORAGE_KEY) || '#0d6efd';
+    const savedAccent = safeStorage.get(ACCENT_STORAGE_KEY) || '#0d6efd';
     setAccent(savedAccent);
 };
 
 const handleSystemThemeChange = () => {
-    if ((localStorage.getItem(THEME_STORAGE_KEY) || 'auto') === 'auto') {
+    if ((safeStorage.get(THEME_STORAGE_KEY) || 'auto') === 'auto') {
         applyTheme('auto');
     }
 };
@@ -948,7 +975,7 @@ function deleteTransaction(id) {
 }
 
 function saveTransactions() {
-    localStorage.setItem('transactions', JSON.stringify(transactions));
+    safeStorage.set('transactions', JSON.stringify(transactions));
 }
 
 function startEdit(transaction) {
@@ -1131,7 +1158,7 @@ function showAlert(message, type = 'warning') {
 
 // Communication helper functions
 const saveCommunicationItems = () => {
-    localStorage.setItem(COMMUNICATION_ITEMS_KEY, JSON.stringify(communicationItems));
+    safeStorage.set(COMMUNICATION_ITEMS_KEY, JSON.stringify(communicationItems));
 };
 
 const nextCommunicationColor = (index) => {
@@ -1688,7 +1715,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCategoryPills();
     initializeThemeControls();
     setupTabs();
-    const savedTab = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+    const savedTab = safeStorage.get(ACTIVE_TAB_STORAGE_KEY);
     const validTab = savedTab && Array.from(tabButtons).some((button) => button.dataset.tabTarget === savedTab);
     setActiveTab(validTab ? savedTab : 'finance');
     renderTodos();
@@ -1698,12 +1725,12 @@ document.addEventListener('DOMContentLoaded', () => {
     normalizeCommunicationItems();
     renderCommunicationItems();
 
-    transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    transactions = safeJsonParse('transactions', []);
     updateBalance();
     displayTransactions();
     setCommunicationFormMode();
     setInputSectionVisibility(true);
-    const savedCommunicationFormState = localStorage.getItem(COMMUNICATION_FORM_COLLAPSE_KEY);
+    const savedCommunicationFormState = safeStorage.get(COMMUNICATION_FORM_COLLAPSE_KEY);
     const shouldExpand = savedCommunicationFormState !== 'collapsed';
     applyCommunicationFormState(shouldExpand);
 });
