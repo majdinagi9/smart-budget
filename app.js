@@ -82,6 +82,13 @@ const safeStorage = {
         } catch (error) {
             // Ignore storage errors (e.g. disabled storage or quota exceeded).
         }
+    },
+    remove(key) {
+        try {
+            localStorage.removeItem(key);
+        } catch (error) {
+            // Ignore storage errors (e.g. disabled storage or quota exceeded).
+        }
     }
 };
 
@@ -311,6 +318,11 @@ const loadTransactions = () => {
     return Array.isArray(stored) ? stored.map(normalizeTransaction) : [];
 };
 
+const createDefaultSharedParticipants = () => {
+    const baseId = Date.now();
+    return [{ id: baseId, name: 'You' }];
+};
+
 const filterTransactions = () => {
     activeCategoryFilter = categoryFilter.value;
     displayTransactions();
@@ -367,10 +379,7 @@ if (!communicationItems.length) {
     safeStorage.set(COMMUNICATION_ITEMS_KEY, JSON.stringify(communicationItems));
 }
 if (!sharedParticipants.length) {
-    const baseId = Date.now();
-    sharedParticipants = [
-        { id: baseId, name: 'You' }
-    ];
+    sharedParticipants = createDefaultSharedParticipants();
     safeStorage.set(SHARED_PARTICIPANTS_KEY, JSON.stringify(sharedParticipants));
 }
 
@@ -1530,20 +1539,58 @@ const deleteCommunicationItem = (id) => {
     renderCommunicationItems();
 };
 
+const resetWorkspaceData = () => {
+    stopCommunicationAudio();
+    stopRecordingStream();
+    communicationAudioData = '';
+    recordingChunks = [];
+    mediaRecorder = null;
+
+    transactions = [];
+    todos = [];
+    sharedParticipants = createDefaultSharedParticipants();
+    sharedExpenses = [];
+    communicationItems = DEFAULT_COMMUNICATION_ITEMS.map(item => ({ ...item }));
+
+    saveTransactions();
+    saveTodos();
+    saveSharedParticipants();
+    saveSharedExpenses();
+    saveCommunicationItems();
+
+    activeCategoryFilter = '';
+    if (categoryFilter) {
+        categoryFilter.value = '';
+    }
+    descriptionInput.value = '';
+    amountInput.value = '';
+    document.getElementById('incomeRadio').checked = true;
+    setActiveCategory(null);
+
+    renderTodos();
+    updateSharedExpenseControls();
+    renderSharedParticipants();
+    renderSharedExpenseHistory();
+    normalizeCommunicationItems();
+    renderCommunicationItems();
+    setCommunicationFormMode();
+
+    setActiveTab('finance');
+    applyCommunicationFormState(true);
+    safeStorage.set(ACTIVE_TAB_STORAGE_KEY, 'finance');
+    safeStorage.set(COMMUNICATION_FORM_COLLAPSE_KEY, 'expanded');
+
+    updateBalance();
+    displayTransactions();
+    setInputSectionVisibility(true);
+};
+
 // Event Listeners
 addTransactionButton.addEventListener('click', addTransaction);
 saveTransactionButton.addEventListener('click', saveEdit);
 clearDataButton.addEventListener('click', () => {
-    if (confirm('Are you sure you want to clear all transactions? This cannot be undone.')) {
-        transactions = [];
-        saveTransactions();
-        activeCategoryFilter = '';
-        if (categoryFilter) {
-            categoryFilter.value = '';
-        }
-        updateBalance();
-        displayTransactions();
-        setActiveCategory(null);
+    if (confirm('Reset your workspace? This clears transactions, todos, shared balances, and communication cards.')) {
+        resetWorkspaceData();
     }
 });
 
