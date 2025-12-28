@@ -34,10 +34,12 @@
             --card-bg: #ffffff;
             --card-border: #dee2e6;
             --panel-bg: #f3f6fb;
+            --surface-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+            --surface-shadow-hover: 0 10px 24px rgba(15, 23, 42, 0.12);
         }
         
         body {
-            background: linear-gradient(180deg, #f6f9ff 0%, #f8f9fa 55%, #ffffff 100%);
+            background: #f7f9fc;
             transition: background 0.3s ease, color 0.3s ease;
             color: #212529;
             font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -98,8 +100,8 @@
         }
 
         .communication-card--focused {
-            outline: 3px solid rgba(13, 110, 253, 0.35);
-            box-shadow: 0 0 0 6px rgba(13, 110, 253, 0.15);
+            outline: 3px solid rgba(13, 110, 253, 0.3);
+            box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.12);
         }
 
         .communication-card {
@@ -107,7 +109,7 @@
             border-radius: 14px;
             padding: 0.75rem;
             background: linear-gradient(145deg, rgba(13, 110, 253, 0.06), var(--card-bg));
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+            box-shadow: var(--surface-shadow);
             cursor: pointer;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             min-height: 170px;
@@ -118,7 +120,7 @@
 
         .communication-card:hover {
             transform: translateY(-3px);
-            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+            box-shadow: var(--surface-shadow-hover);
         }
 
         .communication-image {
@@ -230,13 +232,13 @@
             border-radius: 16px;
             background-color: var(--card-bg);
             border-color: var(--card-border);
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+            box-shadow: var(--surface-shadow);
             transition: transform 0.3s ease;
         }
         
         .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-1px);
+            box-shadow: var(--surface-shadow-hover);
         }
 
         .app-shell {
@@ -262,6 +264,41 @@
 
         .app-subtitle {
             max-width: 520px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .section-heading {
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #6c757d;
+            margin-bottom: 0;
+        }
+
+        body.dark-mode .section-heading {
+            color: #adb5bd;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .section-subtitle {
+            margin-bottom: 0;
+            color: #6c757d;
+        }
+
+        body.dark-mode .section-subtitle {
+            color: #adb5bd;
         }
         
         .positive { color: var(--income-color); }
@@ -327,8 +364,8 @@
         }
 
         .list-group-item[data-transaction]:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+            box-shadow: var(--surface-shadow);
         }
         
         #mobile-add-btn {
@@ -398,13 +435,13 @@
             padding: 1.25rem;
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            box-shadow: 0 10px 25px rgba(13, 110, 253, 0.08);
+            box-shadow: var(--surface-shadow);
             height: 100%;
             transition: transform 0.2s ease;
         }
 
         .insight-card:hover {
-            transform: translateY(-4px);
+            transform: translateY(-2px);
         }
 
         .insight-label {
@@ -543,8 +580,8 @@
             min-width: 0;
             max-width: 100%;
             font-weight: 600;
-            background: rgba(255, 255, 255, 0.75);
-            border-color: rgba(13, 110, 253, 0.35);
+            background: rgba(255, 255, 255, 0.6);
+            border-color: rgba(13, 110, 253, 0.2);
             color: var(--primary-color);
         }
 
@@ -561,8 +598,8 @@
             gap: 0.5rem;
             padding: 0.5rem;
             border-radius: 1.25rem;
-            background: rgba(13, 110, 253, 0.08);
-            border: 1px solid rgba(13, 110, 253, 0.12);
+            background: rgba(13, 110, 253, 0.05);
+            border: 1px solid rgba(13, 110, 253, 0.08);
             width: 100%;
         }
 
@@ -662,7 +699,12 @@
             border-radius: 999px;
             border: 1px solid var(--card-border);
             background: var(--card-bg);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+            box-shadow: var(--surface-shadow);
+        }
+
+        .utility-actions {
+            display: grid;
+            gap: 0.75rem;
         }
 
         .theme-toggle .btn {
@@ -750,6 +792,13 @@
         </div>
 
         <div class="tab-panel active" data-tab-panel="finance">
+        <div class="section-header mb-3">
+            <div>
+                <p class="section-heading">Finance</p>
+                <h2 class="section-title">Overview</h2>
+                <p class="section-subtitle">Track gains, owes, and your top spending focus.</p>
+            </div>
+        </div>
         <div class="row g-3 mb-4">
             <div class="col-12 col-md-4">
                 <div class="insight-card h-100">
@@ -778,8 +827,12 @@
 
         <div class="card shadow-sm mb-4">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="mb-0">Add Transaction</h2>
+                <div class="section-header mb-3">
+                    <div>
+                        <p class="section-heading">Transactions</p>
+                        <h2 class="section-title">Add a new entry</h2>
+                        <p class="section-subtitle">Log a gain or owe with a few taps.</p>
+                    </div>
                     <button id="toggle-input" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-chevron-up"></i> Hide
                     </button>
@@ -836,7 +889,8 @@
 
         <div class="card shadow-sm mb-4">
             <div class="card-body text-center">
-                <h2 class="mb-3">Balance</h2>
+                <p class="section-heading">Balance</p>
+                <h2 class="section-title mb-3">Current total</h2>
                 <div id="balance" class="balance-display fs-2 fw-bold">$0.00</div>
                 <div id="balance-scope" class="text-muted small mt-2">All categories</div>
             </div>
@@ -844,8 +898,11 @@
 
         <div class="card shadow-sm mb-4">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h3 class="mb-0">History&nbsp;</h3>
+                <div class="section-header mb-3">
+                    <div>
+                        <p class="section-heading">History</p>
+                        <h3 class="section-title">Recent activity</h3>
+                    </div>
                     <div class="d-flex gap-2 align-items-center">
                         <select id="category-filter" class="form-select form-select-sm">
                             <option value="">All Categories</option>
@@ -880,13 +937,24 @@
             </div>
         </div>
 
-        <div class="d-grid gap-2">
-            <button id="export-data" class="btn btn-secondary">
-                <i class="bi bi-download"></i> Export to CSV
-            </button>
-            <button id="clear-data" class="btn btn-danger">
-                <i class="bi bi-trash"></i> Clear All Data
-            </button>
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="section-header mb-3">
+                    <div>
+                        <p class="section-heading">Data tools</p>
+                        <h3 class="section-title">Manage your records</h3>
+                        <p class="section-subtitle">Export a backup or reset everything.</p>
+                    </div>
+                </div>
+                <div class="utility-actions">
+                    <button id="export-data" class="btn btn-secondary">
+                        <i class="bi bi-download"></i> Export to CSV
+                    </button>
+                    <button id="clear-data" class="btn btn-outline-danger">
+                        <i class="bi bi-trash"></i> Clear All Data
+                    </button>
+                </div>
+            </div>
         </div>
         </div> <!-- end finance panel -->
 
@@ -895,8 +963,9 @@
                 <div class="card-body">
                     <div class="organizer-header justify-content-between mb-3">
                         <div>
-                            <h2 class="mb-1">Organizer</h2>
-                            <p class="text-muted mb-0">Capture quick todos and stay on top of priorities.</p>
+                            <p class="section-heading">Organizer</p>
+                            <h2 class="section-title">Today’s focus</h2>
+                            <p class="section-subtitle">Capture quick todos and stay on top of priorities.</p>
                         </div>
                         <span class="badge bg-primary" id="todo-progress">0 of 0 complete</span>
                     </div>
@@ -928,8 +997,9 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div>
-                                <h2 class="mb-1">Balances</h2>
-                                <p class="text-muted mb-0">Track who owes what.</p>
+                                <p class="section-heading">Split</p>
+                                <h2 class="section-title">Balances</h2>
+                                <p class="section-subtitle">Track who owes what.</p>
                             </div>
                             <button class="btn btn-sm btn-outline-primary" id="reset-shared-balances">
                                 <i class="bi bi-arrow-counterclockwise"></i>
@@ -946,7 +1016,8 @@
                 </div>
                 <div class="card shadow-sm">
                     <div class="card-body">
-                        <h2 class="mb-3">Split Expense</h2>
+                        <p class="section-heading">Split</p>
+                        <h2 class="section-title mb-3">New shared expense</h2>
                         <form id="shared-expense-form" class="row g-2">
                             <div class="col-12">
                                 <input type="text" id="shared-expense-description" class="form-control" placeholder="Description" required>
@@ -973,7 +1044,10 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h2 class="mb-0">Shared Expense History</h2>
+                        <div>
+                            <p class="section-heading">Split</p>
+                            <h2 class="section-title mb-0">Shared expense history</h2>
+                        </div>
                         <span class="text-muted small" id="shared-expense-summary">No expenses yet</span>
                     </div>
                     <ul id="shared-expense-history" class="list-group"></ul>
