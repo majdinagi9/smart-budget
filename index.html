@@ -539,6 +539,13 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            flex: 1 1 160px;
+            min-width: 0;
+            max-width: 100%;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.75);
+            border-color: rgba(13, 110, 253, 0.35);
+            color: var(--primary-color);
         }
 
         .tab-nav .btn.active {
@@ -549,15 +556,25 @@
         }
 
         .tab-nav {
-            padding: 0.35rem;
-            border-radius: 999px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 1.25rem;
             background: rgba(13, 110, 253, 0.08);
             border: 1px solid rgba(13, 110, 253, 0.12);
+            width: 100%;
         }
 
         body.dark-mode .tab-nav {
             background: rgba(255, 255, 255, 0.08);
             border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        body.dark-mode .tab-nav .btn {
+            background: rgba(15, 23, 42, 0.4);
+            border-color: rgba(255, 255, 255, 0.15);
+            color: #e2e8f0;
         }
 
         .tab-panel {
@@ -717,7 +734,7 @@
             </div>
         </div>
 
-        <div class="d-flex flex-wrap gap-2 mb-4 tab-nav">
+        <div class="mb-4 tab-nav">
             <button class="btn btn-outline-primary active" data-tab-target="finance">
                 <i class="bi bi-wallet2 me-1"></i> Finance
             </button>
