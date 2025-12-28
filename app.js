@@ -287,6 +287,30 @@ const getFilteredTransactions = () => {
 
 const generateId = () => Date.now() + Math.floor(Math.random() * 1000);
 
+const normalizeTransaction = (transaction, index = 0) => {
+    const rawAmount = Number(transaction.amount);
+    const normalizedAmount = Number.isFinite(rawAmount) ? Math.abs(rawAmount) : 0;
+    const type = transaction.type === 'income' || transaction.type === 'expense'
+        ? transaction.type
+        : rawAmount < 0
+            ? 'expense'
+            : 'income';
+
+    return {
+        id: typeof transaction.id === 'number' ? transaction.id : generateId() + index,
+        description: transaction.description || '',
+        amount: normalizedAmount,
+        type,
+        category: typeof transaction.category === 'string' ? transaction.category : '',
+        date: transaction.date || transaction.dateModified || new Date().toISOString()
+    };
+};
+
+const loadTransactions = () => {
+    const stored = safeJsonParse('transactions', []);
+    return Array.isArray(stored) ? stored.map(normalizeTransaction) : [];
+};
+
 const filterTransactions = () => {
     activeCategoryFilter = categoryFilter.value;
     displayTransactions();
@@ -309,6 +333,7 @@ const sortTodos = (list) => list
         return new Date(a.createdAt) - new Date(b.createdAt);
     });
 
+transactions = loadTransactions();
 todos = Array.isArray(todos) ? todos.map((todo, index) => normalizeTodo(todo, index)) : [];
 sharedParticipants = Array.isArray(sharedParticipants)
     ? sharedParticipants.map((participant, index) => ({
@@ -1512,6 +1537,10 @@ clearDataButton.addEventListener('click', () => {
     if (confirm('Are you sure you want to clear all transactions? This cannot be undone.')) {
         transactions = [];
         saveTransactions();
+        activeCategoryFilter = '';
+        if (categoryFilter) {
+            categoryFilter.value = '';
+        }
         updateBalance();
         displayTransactions();
         setActiveCategory(null);
@@ -1738,7 +1767,7 @@ document.addEventListener('DOMContentLoaded', () => {
     normalizeCommunicationItems();
     renderCommunicationItems();
 
-    transactions = safeJsonParse('transactions', []);
+    transactions = loadTransactions();
     updateBalance();
     displayTransactions();
     setCommunicationFormMode();
