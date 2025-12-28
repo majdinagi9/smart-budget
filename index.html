@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker</title>
+    <title>One Place</title>
     <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
     <!-- Mobile web app capable meta tags -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Finance Tracker">
+    <meta name="apple-mobile-web-app-title" content="One Place">
     <!-- iOS home screen icons -->
     <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
     <link rel="apple-touch-icon" sizes="152x152" href="assets/icons/icon-152.png">
@@ -536,6 +536,9 @@
         .tab-nav .btn {
             border-radius: 999px;
             transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .tab-nav .btn.active {
@@ -563,6 +566,17 @@
 
         .tab-panel.active {
             display: block;
+        }
+
+        .organizer-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 0.75rem 1rem;
+        }
+
+        .organizer-header .badge {
+            white-space: nowrap;
         }
 
         #todo-list .list-group-item {
@@ -660,6 +674,12 @@
             .accent-options {
                 justify-content: space-between;
             }
+            .tab-nav .btn {
+                flex: 1 1 calc(50% - 0.5rem);
+            }
+            .organizer-header .badge {
+                align-self: flex-start;
+            }
         }
     </style>
 </head>
@@ -667,7 +687,7 @@
     <div class="container mt-4 app-shell">
         <div class="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-4 app-header">
             <div>
-                <h1 class="mb-1 app-title">Personal Finance Tracker</h1>
+                <h1 class="mb-1 app-title">One Place</h1>
                 <p class="text-muted mb-0 app-subtitle">Stay on top of every gain and owe with real-time insights across budgets, shared expenses, and communications.</p>
             </div>
             <div class="d-flex flex-wrap gap-3 ms-md-auto w-100 w-md-auto">
@@ -856,7 +876,7 @@
         <div class="tab-panel" data-tab-panel="organizer">
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="organizer-header justify-content-between mb-3">
                         <div>
                             <h2 class="mb-1">Organizer</h2>
                             <p class="text-muted mb-0">Capture quick todos and stay on top of priorities.</p>
