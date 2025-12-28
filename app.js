@@ -727,6 +727,23 @@ const renderCategoryPills = () => {
     setActiveCategory(currentCategory || null);
 };
 
+const renderCategoryOptions = () => {
+    if (!categorySelect) return;
+    categorySelect.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Choose a category';
+    categorySelect.appendChild(placeholder);
+
+    CATEGORY_CONFIG.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.value;
+        option.textContent = category.label;
+        categorySelect.appendChild(option);
+    });
+};
+
 const setActiveCategory = (categoryValue) => {
     categoryPillGroup?.querySelectorAll('.category-pill').forEach(pill => {
         const isActive = pill.dataset.value === categoryValue;
@@ -1637,6 +1654,10 @@ categoryPillGroup?.addEventListener('click', (e) => {
     setActiveCategory(pill.dataset.value);
 });
 
+categorySelect?.addEventListener('change', (e) => {
+    setActiveCategory(e.target.value);
+});
+
 todoForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = todoInput.value.trim();
@@ -1795,6 +1816,7 @@ accentOptionsContainer?.addEventListener('click', (e) => {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    renderCategoryOptions();
     renderCategoryPills();
     initializeThemeControls();
     setupTabs();
