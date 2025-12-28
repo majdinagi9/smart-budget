@@ -20,7 +20,8 @@ const tabPanels = document.querySelectorAll('[data-tab-panel]');
 const categoryPillGroup = document.getElementById('category-pill-group');
 const categoryHint = document.getElementById('category-hint');
 const categoryGuidance = document.getElementById('category-guidance');
-const themeModeSelect = document.getElementById('themeMode');
+const themeToggle = document.getElementById('theme-toggle');
+const themeModeButtons = document.querySelectorAll('[data-theme-mode]');
 const accentOptionsContainer = document.getElementById('accent-options');
 const insightIncome = document.getElementById('insight-income');
 const insightExpense = document.getElementById('insight-expense');
@@ -733,11 +734,23 @@ const setAccent = (color) => {
     });
 };
 
+const updateThemeButtons = (mode) => {
+    themeModeButtons.forEach((button) => {
+        const isActive = button.dataset.themeMode === mode;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+};
+
+const setThemeMode = (mode) => {
+    localStorage.setItem(THEME_STORAGE_KEY, mode);
+    applyTheme(mode);
+    updateThemeButtons(mode);
+};
+
 const initializeThemeControls = () => {
     const savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || 'auto';
-    if (themeModeSelect) {
-        themeModeSelect.value = savedTheme;
-    }
+    updateThemeButtons(savedTheme);
     applyTheme(savedTheme);
     
     const savedAccent = localStorage.getItem(ACCENT_STORAGE_KEY) || '#0d6efd';
@@ -1653,10 +1666,10 @@ communicationCancelButton?.addEventListener('click', () => setCommunicationFormM
 communicationFormBody?.addEventListener('shown.bs.collapse', () => applyCommunicationFormState(true));
 communicationFormBody?.addEventListener('hidden.bs.collapse', () => applyCommunicationFormState(false));
 
-themeModeSelect?.addEventListener('change', () => {
-    const mode = themeModeSelect.value;
-    localStorage.setItem(THEME_STORAGE_KEY, mode);
-    applyTheme(mode);
+themeToggle?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-theme-mode]');
+    if (!button) return;
+    setThemeMode(button.dataset.themeMode);
 });
 
 accentOptionsContainer?.addEventListener('click', (e) => {
