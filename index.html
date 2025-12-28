@@ -847,8 +847,10 @@
                                    pattern="[0-9]*">
                         </div>
                         <div class="col-12 col-md-3">
+                            <select id="category" class="form-select mb-2" required aria-label="Category">
+                                <option value="">Choose a category</option>
+                            </select>
                             <div id="category-pill-group" class="category-pill-group"></div>
-                            <input type="hidden" id="category" required>
                             <small id="category-hint" class="text-muted d-block mt-2 category-hint">
                                 Choose a category to see smart tips.
                             </small>
