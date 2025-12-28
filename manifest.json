@@ -1,7 +1,7 @@
 {
-    "name": "Finance Tracker",
-    "short_name": "Finance",
-    "description": "Personal Finance Tracker Application",
+    "name": "One Place",
+    "short_name": "One Place",
+    "description": "One Place personal finance application",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
