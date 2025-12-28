@@ -586,6 +586,36 @@
             align-items: center;
         }
 
+        .theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem;
+            border-radius: 999px;
+            border: 1px solid var(--card-border);
+            background: var(--card-bg);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        .theme-toggle .btn {
+            border-radius: 999px;
+            padding: 0.25rem 0.75rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+            color: inherit;
+            background: transparent;
+        }
+
+        .theme-toggle .btn.active {
+            background: var(--accent-color);
+            color: #fff;
+            box-shadow: 0 6px 16px rgba(13, 110, 253, 0.25);
+        }
+
+        body.dark-mode .theme-toggle {
+            background: var(--panel-bg);
+        }
+
         @media (max-width: 576px) {
             .accent-controls, .theme-controls {
                 width: 100%;
@@ -605,12 +635,18 @@
             </div>
             <div class="d-flex flex-wrap gap-3 ms-md-auto w-100 w-md-auto">
                 <div class="theme-controls flex-grow-1 flex-md-grow-0">
-                    <label for="themeMode" class="form-label text-muted small mb-0">Theme</label>
-                    <select id="themeMode" class="form-select form-select-sm">
-                        <option value="auto">System</option>
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
-                    </select>
+                    <span class="form-label text-muted small mb-0">Theme</span>
+                    <div id="theme-toggle" class="theme-toggle" role="group" aria-label="Theme mode">
+                        <button type="button" class="btn btn-sm" data-theme-mode="auto" aria-pressed="false">
+                            <i class="bi bi-circle-half me-1"></i> System
+                        </button>
+                        <button type="button" class="btn btn-sm" data-theme-mode="light" aria-pressed="false">
+                            <i class="bi bi-sun me-1"></i> Light
+                        </button>
+                        <button type="button" class="btn btn-sm" data-theme-mode="dark" aria-pressed="false">
+                            <i class="bi bi-moon-stars me-1"></i> Dark
+                        </button>
+                    </div>
                 </div>
                 <div class="accent-controls flex-grow-1 flex-md-grow-0">
                     <span class="form-label text-muted small mb-0">Accent</span>
